@@ -1,0 +1,98 @@
+# ============================================================================
+# AdvNFC Protected Scripts
+#
+# These scripts are stored as a package because they contain !include
+# statements. They must not be recreated in the Home Assistant Script UI,
+# otherwise the UI will overwrite the includes.
+# ============================================================================
+
+script:
+  advnfc_find_tag_record:
+    alias: 'AdvNFC - Fn: Find Tag Record'
+    description: Returns the tag-mapping record matching a scanned UID
+    mode: parallel
+    max: 10
+    fields:
+      uid:
+        name: UID
+        description: Scanned NFC UID
+        required: true
+        selector:
+          text:
+    sequence:
+    - variables:
+        tag_mapping: !include ../../assistive/advnfc_tag_mapping.yaml
+        lookup_uid: '{{ uid | string | trim | upper }}'
+    - variables:
+        tag_record_response: '{{ tag_mapping.get(lookup_uid, {}) }}'
+    - stop: Tag lookup complete
+      response_variable: tag_record_response
+
+  advnfc_uid_gateway:
+    alias: AdvNFC - UID Gateway
+    description: ''
+    fields:
+      uid:
+        selector:
+          text:
+        name: UID
+        required: true
+        description: Received UID
+      trigger_entity:
+        selector:
+          entity:
+        default: sensor.pi_nfc_99_last_uid
+        name: Trigger Entity
+    sequence:
+    - action: script.advnfc_find_tag_record
+      data:
+        uid: '{{ uid }}'
+      response_variable: tag_record_response
+    - if:
+      - condition: template
+        value_template: '{{ tag_record_response | default({}, true) | count == 0 }}'
+      then:
+      - action: notify.persistent_notification
+        data:
+          title: No Tag Record Found
+          message: 'No tag record found for UID:
+
+            {{ uid }}'
+      - stop: No tag record found
+        error: false
+    - if:
+      - condition: template
+        value_template: '{{ tag_record_response.intent_id | default('''', true) | string
+          | trim == '''' }}'
+      then:
+      - action: notify.persistent_notification
+        data:
+          title: Invalid Tag Record
+          message: 'Tag record for UID ''{{ uid }}'' has no valid intent_id.
+
+
+            Record: {{ tag_record_response }}'
+      - stop: Invalid tag record
+        error: false
+    - variables:
+        tag_intent_id: '{{ tag_record_response.intent_id | string | trim }}'
+        tag_area_override: '{{ tag_record_response.area_override | default('''', true)
+          | string | trim }}'
+    - action: notify.persistent_notification
+      data:
+        title: Tag Record Found
+        message: 'UID: {{ uid }}
+
+          Trigger Entity: {{ trigger_entity }}
+
+          Intent ID: {{ tag_intent_id }}
+
+          Area Override: {{ tag_area_override if tag_area_override != '''' else ''(none)''
+          }}'
+    - action: script.astv_intent_gateway
+      data:
+        intent_id: '{{ tag_intent_id }}'
+        input_area_override: '{{ tag_area_override }}'
+        trigger_entity: '{{ trigger_entity }}'
+    mode: parallel
+    max: 10
