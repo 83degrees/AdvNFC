@@ -1,0 +1,14 @@
+[Unit]
+Description=AdvNFC Reader Agent (libnfc -> MQTT + HA webhook)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi01
+EnvironmentFile=/etc/advnfc/reader-agent.env
+ExecStart=/opt/advnfc/reader_agent/advnfc_reader_agent.sh
+Restart=always
+RestartSec=1s
+
+[Install]
+WantedBy=multi-user.target
