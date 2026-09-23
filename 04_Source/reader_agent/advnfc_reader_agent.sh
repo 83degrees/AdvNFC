@@ -1,8 +1,8 @@
 #!/bin/bash
 # AdvNFC reader agent
 #
-# Behavior-preserving extraction of the pi-nfc-02 runtime baseline captured
-# under ASTV-246. Deployment-specific configuration is supplied by systemd
+# Behavior-preserving extraction of the captured pi-nfc-02 runtime baseline.
+# Deployment-specific configuration is supplied by systemd
 # through /etc/advnfc/reader-agent.env. Secrets must not be stored here.
 
 HA_BASE_URL="${HA_BASE_URL:-http://ha-starburst.little-dory.ts.net:8123}"
