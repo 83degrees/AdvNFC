@@ -7,7 +7,7 @@ This profile contains the required product-profile subjects and is established u
 ## Document status
 
 - Governance state: current
-- Product bootstrap state: repository authority being established; no AdvNFC runtime is deployed by this issue
+- Product runtime state: Home Assistant NFC-entry path is deployed and active; Raspberry Pi reader-agent source is being brought under governance but is not yet deployed from this repository
 
 ## Product identity
 
@@ -23,12 +23,14 @@ This profile contains the required product-profile subjects and is established u
 
 ## Purpose
 
-AdvNFC is the Home Assistant NFC interaction and intent-production product. It consumes configured NFC-reader events, filters invalid reader transitions, resolves scanned UIDs through its governed tag mapping, and submits the resulting canonical intent invocation to a downstream intent consumer through a governed interface.
+AdvNFC is the NFC interaction and intent-production product. Its deployed Home Assistant path consumes configured NFC-reader events, filters invalid reader transitions, resolves scanned UIDs through its governed tag mapping, and submits the resulting canonical intent invocation to a downstream intent consumer through a governed interface. AdvNFC also governs the candidate Raspberry Pi reader-agent software that acquires physical NFC UIDs and publishes the established reader events consumed by Home Assistant.
 
 ## Scope
 
 ### In scope
 
+- Raspberry Pi NFC reader-agent software, including UID acquisition, established same-card suppression/reset behavior, reader identity, and construction of the existing reader outputs.
+- Reader-agent service definition and deployment configuration boundary.
 - Consumption of configured NFC reader-event state from Home Assistant.
 - Filtering invalid, unavailable, unknown, and recovery transitions before UID processing.
 - UID normalization.
@@ -46,18 +48,20 @@ AdvNFC is the Home Assistant NFC interaction and intent-production product. It c
 - Final target-area resolution and area precedence after the invocation crosses into ASTV.
 - Intent routing, playback-method selection, endpoint selection, or execution dispatch.
 - MediaCat or AdvMedia internals.
-- Ownership of Home Assistant, MQTT infrastructure, NFC reader hardware, or their transport protocols.
+- Ownership of Home Assistant, the MQTT broker/infrastructure, Raspberry Pi OS, USB/platform internals, libnfc itself, or NFC reader hardware.
 - ASTV execution engines or external Google Home / Google Assistant / Matter behavior.
 
 ## Ownership and boundaries
 
 | Boundary or capability | Relationship | Owner | Notes |
 | --- | --- | --- | --- |
-| NFC interaction-to-intent-production pipeline | owned | AdvNFC | Includes reader-event consumption, filtering, UID normalization, tag lookup/validation, mapping, and invocation construction. |
+| NFC interaction-to-intent-production pipeline | owned | AdvNFC | Includes the governed reader-agent software, reader-event consumption, filtering, UID normalization, tag lookup/validation, mapping, and invocation construction. |
 | AdvNFC tag mapping | owned | AdvNFC | Maps normalized UID values to AdvNFC tag records containing the canonical downstream intent reference and optional caller area override. |
 | ASTV Intent Invocation interface | consumed | ASTV | Provider-owned contract defines `intent_id`, optional `input_area_override`, optional `trigger_entity`, and failure semantics. |
 | Home Assistant runtime | external | Home Assistant | AdvNFC consumes configured entities and actions; runtime truth remains external to this repository. |
-| MQTT and NFC reader delivery | external | MQTT / reader infrastructure | AdvNFC consumes configured reader-sensor state changes and does not own transport or hardware. |
+| AdvNFC reader agent | owned | AdvNFC | Candidate source acquires NFC UIDs through libnfc and emits the established webhook/MQTT outputs; governed deployment is pending ASTV-249. |
+| MQTT broker and transport infrastructure | external | Infrastructure owner | AdvNFC publishes/consumes configured MQTT topics but does not own the broker or network transport. |
+| NFC reader hardware / Raspberry Pi platform | external | Hardware / platform owners | AdvNFC owns the reader-agent software, not the ACR122U hardware, Raspberry Pi OS, USB stack, or libnfc implementation. |
 
 ## Approved architecture location
 
@@ -70,7 +74,9 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 ## Contracts provided
 
-AdvNFC provides no cross-product contract at bootstrap.
+| Contract | Status/version | Provider/owner | Authoritative location | Local use |
+| --- | --- | --- | --- | --- |
+| `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | current v1.0.0 candidate | AdvNFC | `03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | Governs reader-agent MQTT publications consumed by downstream infrastructure, including the Home Assistant reader-sensor path. |
 
 ## Contracts consumed
 
@@ -85,7 +91,8 @@ The provider-owned ASTV contract is the sole operational authority for the cross
 | Dependency | Type | Owner | Governed interface/evidence | Required state | Failure boundary |
 | --- | --- | --- | --- | --- | --- |
 | Home Assistant | platform | Home Assistant | Future verified production evidence | Configured reader entities and required script/action surfaces available | No usable reader event reaches AdvNFC or downstream invocation cannot be issued. |
-| MQTT and NFC reader infrastructure | external | Infrastructure owner | Future production evidence | Reader state changes delivered to configured Home Assistant entities | No input event reaches AdvNFC. |
+| MQTT broker / network transport | external | Infrastructure owner | `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` plus production evidence | Reader-agent publications can reach Home Assistant | No reader event reaches the configured Home Assistant entities. |
+| libnfc / ACR122U reader platform | external | Platform / hardware owners | ASTV-246 runtime evidence | `nfc-list` can acquire NFCID1 from the attached reader | Reader agent cannot acquire a UID. |
 | ASTV | product/service | ASTV | `ASTV_INTENT_INVOCATION_INTERFACE.md` | Contracted `script.astv_intent_gateway` entry point available | Invocation fails/stops at the provider-defined ASTV boundary. |
 | AdvNFC tag mapping | data | AdvNFC | Future `advnfc_tag_mapping.yaml` source baseline | Mapping file present and loadable | Unknown or invalid tag stops visibly before ASTV invocation. |
 
@@ -95,7 +102,7 @@ The provider-owned ASTV contract is the sole operational authority for the cross
 
 AdvNFC owns the `advnfc_` prefix for its Home Assistant scripts, automations, data files, and package naming.
 
-Planned initial implementation identities are:
+Current Home Assistant implementation identities are:
 
 - `automation.advnfc_tag_listener`
 - `script.advnfc_uid_gateway`
@@ -103,12 +110,12 @@ Planned initial implementation identities are:
 - `advnfc_tag_mapping.yaml`
 - `packages/advnfc`
 
-These names identify target AdvNFC ownership. They do not claim that production ownership has moved before the separately governed extraction and cutover work completes.
+These names are the active AdvNFC Home Assistant identities following the accepted production cutover. The reader-agent candidate additionally uses `04_Source/reader_agent/` and target service identity `advnfc-reader-agent.service`; governed production deployment of that candidate remains pending.
 
 ## Production and evidence route
 
-- Production route: not established by ASTV-240. Initial deployment and cutover are governed by later AdvNFC carve-out issues.
-- Current production fact: the active NFC-entry implementation remains within ASTV until the governed extraction and production cutover complete.
+- Production route: the Home Assistant NFC-entry implementation is active in `ha-starburst` and invokes ASTV through the governed Intent Invocation interface. The currently deployed Raspberry Pi reader agent remains the captured `pi-nfc-02` runtime until ASTV-249 performs the governed reader-agent deployment.
+- Current production fact: AdvNFC owns and runs the Home Assistant NFC-entry path; ASTV begins at the Intent Invocation boundary. ASTV-247 establishes reader-agent source authority without yet changing the Pi runtime.
 - Evidence route: future AdvNFC production evidence must follow the centrally governed Production Evidence Standard.
 - Secrets and mutable-state boundary: credentials, secrets, mutable Home Assistant state, and production snapshots remain outside this repository.
 - Validation evidence route: Linear records governed work and validation; Git/GitHub records exact candidate and accepted repository states.
@@ -121,4 +128,12 @@ ASTV-242 establishes the candidate AdvNFC runtime source baseline under:
 - `04_Source/config/packages/advnfc/advnfc_scripts.yaml`
 - `04_Source/config/assistive/advnfc_tag_mapping.yaml`
 
-These files represent the extracted Phase 0 candidate source only. They do not establish production deployment or cutover. The active production NFC-entry implementation remains the ASTV Phase 0 implementation until the separately governed production cutover completes.
+These files are the accepted AdvNFC Home Assistant source baseline following production cutover.
+
+ASTV-247 additionally establishes the candidate Raspberry Pi reader-agent source baseline under:
+
+- `04_Source/reader_agent/advnfc_reader_agent.sh`
+- `04_Source/reader_agent/systemd/advnfc-reader-agent.service`
+- `04_Source/reader_agent/reader-agent.env.example`
+
+The reader-agent candidate preserves the captured `pi-nfc-02` behavior while moving secrets outside source control. It does not establish production deployment; ASTV-249 governs that cutover.
