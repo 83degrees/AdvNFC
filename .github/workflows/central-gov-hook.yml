@@ -1,0 +1,16 @@
+# **Version:** v1.0.0
+# **Status:** Approved
+# **Approval tag:** `central-gov-hook-v1.0.0`
+# **Approval date:** 2026-09-11
+
+name: Central Governance
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  central-governance:
+    uses: 83degrees/governance/.github/workflows/central-gov-wf.yml@main

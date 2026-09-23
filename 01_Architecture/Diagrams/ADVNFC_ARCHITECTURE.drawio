@@ -1,0 +1,122 @@
+<mxfile host="Electron">
+  <diagram name="Page-1" id="advnfc-phase0-copy">
+    <mxGraphModel dx="2100" dy="1400" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+<mxCell id="bt1bDLtFlfFqgo88Ziuf-1" parent="1" style="swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=1;strokeColor=inherit;connectable=0;fillColor=none;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;" value="Phase 0" vertex="1">
+          <mxGeometry height="2524" width="1494" x="40" as="geometry">
+            <mxRectangle height="2524" width="1494" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="source-nfc-reader-sensors" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" value="&lt;b&gt;NFC reader sensors&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;sensor.pi_nfc_02_last_uid&lt;br&gt;sensor.pi_nfc_99_last_uid&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="290" x="374" y="579.5" as="geometry" />
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-68" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="AlRS6Nxp4NqdQ7xusg6v-67" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" target="source-nfc-reader-sensors">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-69" connectable="0" parent="AlRS6Nxp4NqdQ7xusg6v-68" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=#fff2cc;labelBorderColor=#d6b656;" value="MQTT" vertex="1">
+          <mxGeometry relative="1" x="0.0177" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-67" parent="bt1bDLtFlfFqgo88Ziuf-1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="NFC" vertex="1">
+          <mxGeometry height="80" width="80" x="68" y="574.5" as="geometry" />
+        </mxCell>
+        <mxCell id="advnfc-uid-gateway" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" value="&lt;b&gt;UID Gateway&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;script.advnfc_uid_gateway&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="260" x="1125" y="578" as="geometry" />
+        </mxCell>
+        <mxCell id="advnfc-find-tag-record" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#000000;" value="&lt;b&gt;AdvNFC - Fn: Find Tag Record&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;script.advnfc_find_tag_record&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="260" x="1125" y="748" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-uid-to-find-tag" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="advnfc-uid-gateway" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#82b366;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" target="advnfc-find-tag-record">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1190" y="638.5" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-uid-to-find-tag" connectable="0" parent="edge-uid-to-find-tag" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="uid" vertex="1">
+          <mxGeometry relative="1" x="-0.15" y="-8" as="geometry">
+            <mxPoint x="6" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-find-tag-to-uid" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="advnfc-find-tag-record" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=8 8;strokeColor=#82b366;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="advnfc-uid-gateway">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1320.06" y="657.8499999999999" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-find-tag-to-uid" connectable="0" parent="edge-find-tag-to-uid" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="tag_record_response" vertex="1">
+          <mxGeometry relative="1" x="0.15" y="-8" as="geometry">
+            <mxPoint x="-7" y="35" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="automation-advnfc-tag-listener" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" value="&lt;b&gt;AdvNFC - Tag Listener&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;automation.advnfc_tag_listener&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="260" x="783" y="579.5" as="geometry" />
+        </mxCell>
+        <mxCell id="source-advnfc-tag-mapping" parent="bt1bDLtFlfFqgo88Ziuf-1" style="shape=cylinder3;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" value="&lt;b&gt;AdvNFC Tag Mapping&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;advnfc_tag_mapping.yaml&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="122" x="1194" y="887.5" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-nfc-sensors-to-tag-listener" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="source-nfc-reader-sensors" style="edgeStyle=none;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#d6b656;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="automation-advnfc-tag-listener">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-66" connectable="0" parent="edge-nfc-sensors-to-tag-listener" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;fontColor=#333333;labelBorderColor=#666666;" value="trigger: state" vertex="1">
+          <mxGeometry relative="1" x="-0.0174" y="1" as="geometry">
+            <mxPoint x="107" y="-49" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-tag-listener-to-uid-gateway" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="automation-advnfc-tag-listener" style="edgeStyle=none;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="advnfc-uid-gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-tag-listener-uid" connectable="0" parent="edge-tag-listener-to-uid-gateway" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="uid" vertex="1">
+          <mxGeometry relative="1" x="1" y="-8" as="geometry">
+            <mxPoint x="11" y="-81" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-tag-listener-trigger-entity" connectable="0" parent="edge-tag-listener-to-uid-gateway" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="trigger_entity" vertex="1">
+          <mxGeometry relative="1" x="1" y="-8" as="geometry">
+            <mxPoint x="48" y="-56" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-tag-mapping-to-find-tag-record" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="source-advnfc-tag-mapping" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#d6b656;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.772;entryY=0.986;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;dashed=1;dashPattern=8 8;" target="advnfc-find-tag-record">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-17" connectable="0" parent="edge-tag-mapping-to-find-tag-record" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=#fff2cc;labelBorderColor=#d6b656;fontFamily=Courier New;" value="tag_mapping" vertex="1">
+          <mxGeometry relative="1" x="-0.2063" y="-2" as="geometry">
+            <mxPoint x="-2" y="-2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-46" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="advnfc-find-tag-record" style="endArrow=classic;html=1;rounded=0;fillColor=#fff2cc;strokeColor=#d6b656;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;exitX=0.224;exitY=1.021;exitDx=0;exitDy=0;exitPerimeter=0;" target="source-advnfc-tag-mapping" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1090" y="934.5" as="sourcePoint" />
+            <mxPoint x="1140" y="884.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-47" connectable="0" parent="AlRS6Nxp4NqdQ7xusg6v-46" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=#fff2cc;labelBorderColor=#d6b656;fontFamily=Courier New;" value="lookup_uid" vertex="1">
+          <mxGeometry relative="1" x="-0.1146" y="1" as="geometry">
+            <mxPoint x="2" y="-22" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="separator-phase-1-2" parent="bt1bDLtFlfFqgo88Ziuf-1" style="shape=line;html=1;strokeColor=#b3b3b3;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="620" width="1" x="1050" y="504.5" as="geometry" />
+        </mxCell>
+        
+
+        <mxCell id="astv-intent-invocation-boundary" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#000000;" value="&lt;b&gt;ASTV Intent Invocation Interface&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;script.astv_intent_gateway&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="300" x="1600" y="578" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-uid-to-astv-contract" edge="1" parent="1" source="advnfc-uid-gateway" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="astv-intent-invocation-boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-contract-intent-id" connectable="0" parent="edge-uid-to-astv-contract" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="intent_id" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-8" as="geometry"><mxPoint x="0" y="-34" as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="label-contract-input-area-override" connectable="0" parent="edge-uid-to-astv-contract" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="input_area_override" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-8" as="geometry"><mxPoint x="18" y="-12" as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="label-contract-trigger-entity" connectable="0" parent="edge-uid-to-astv-contract" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="trigger_entity" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-8" as="geometry"><mxPoint x="6" y="12" as="offset" /></mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
