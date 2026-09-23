@@ -1,192 +1,153 @@
 # AdvNFC Architecture
 
-## Purpose and authority
+## Purpose and Sources of Truth
 
-This document defines the semantic target architecture of AdvNFC.
+This document records the semantic target architecture of AdvNFC: its active components, calls, returned values, data dependencies, and external boundary.
 
-AdvNFC owns the NFC interaction-to-intent-production path. It consumes configured Home Assistant reader events, filters unusable reader transitions, resolves a scanned UID through AdvNFC-owned tag data, validates the resulting tag record, and invokes the provider-owned ASTV Intent Invocation interface.
+The governed diagram at `Diagrams/ADVNFC_ARCHITECTURE.drawio` represents this semantic architecture. This document is authoritative for AdvNFC architecture and dependencies. Verified live Home Assistant YAML/configuration establishes deployed/runtime facts only, including current entity IDs, inputs, response variables, and service calls.
 
-This document is authoritative for AdvNFC product architecture. The governed diagram at `Diagrams/ADVNFC_ARCHITECTURE.drawio` is its visual representation. Exact deployed Home Assistant configuration and production evidence establish runtime facts only.
+## Architecture Status and Timeframes
 
-## Architecture status
+The architecture below is the target AdvNFC architecture established by ASTV-240.
 
-The architecture below is the bootstrap target established by ASTV-240. It is not yet the deployed production state.
+It is derived directly from the current approved ASTV Phase 0 architecture. Until the separately governed extraction and cutover work completes, the active deployed implementation remains the ASTV Phase 0 implementation.
 
-At bootstrap, the equivalent active behavior still resides in ASTV Phase 0. Subsequent governed extraction and cutover work will implement this architecture under the AdvNFC namespace and then retire the duplicated ASTV ownership only after successful proving.
+The intended carve-out is behavior-preserving. The Phase 0 semantics below are retained as closely as possible, with only:
 
-The bootstrap therefore changes product authority and target architecture only; it does not itself alter Home Assistant runtime behavior.
+- ownership and entity names changed from ASTV to AdvNFC; and
+- the existing direct call to `script.astv_intent_gateway` formalized as consumption of the provider-owned ASTV Intent Invocation interface.
 
-## End-to-end target flow
+## End-to-End Flow
 
-The target flow is:
+The active NFC path being carved out enters through external NFC input, reaches the configured reader sensors over MQTT, and passes through Tag Listener and UID Gateway before downstream ASTV processing continues through Intent Gateway.
 
-`External NFC interaction` → `MQTT / configured HA reader sensor` → `AdvNFC Tag Listener` → `AdvNFC UID Gateway` → `AdvNFC Find Tag Record` → `AdvNFC Tag Mapping` → `ASTV Intent Invocation interface` → `ASTV Intent Gateway`
+AdvNFC receives the external NFC input through the MQTT-fed reader sensors and resolves the tag UID to its canonical `intent_id`. AdvNFC then invokes ASTV through the governed ASTV Intent Invocation interface.
 
-AdvNFC ends at the contracted ASTV invocation boundary.
+## NFC Entry and Tag-to-Intent Resolution
 
-## External NFC input and reader delivery
+### External NFC Input and Reader Sensors
 
-NFC reader hardware and MQTT transport are external infrastructure.
+An external NFC read is delivered over MQTT to one of the configured Home Assistant reader sensors:
 
-AdvNFC consumes configured Home Assistant sensor state changes representing NFC UID reads. The initial extraction is expected to preserve the current configured reader sources unless separately changed through governed work.
+- `sensor.pi_nfc_02_last_uid`
+- `sensor.pi_nfc_99_last_uid`
 
-Reader hardware identity, MQTT topic implementation, and transport ownership remain outside AdvNFC.
+A state change on either sensor is evaluated by AdvNFC - Tag Listener. State transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation.
 
-## AdvNFC Tag Listener
+### AdvNFC - Tag Listener
 
-Target entity:
+- Entity: `automation.advnfc_tag_listener`
+- Sources:
+  - `sensor.pi_nfc_02_last_uid`
+  - `sensor.pi_nfc_99_last_uid`
+- Excludes state transitions to or from `unknown` or `unavailable` at the Home Assistant trigger boundary.
+- Calls `script.advnfc_uid_gateway` for each remaining state change, with:
+  - `uid`
+  - `trigger_entity`
 
-`automation.advnfc_tag_listener`
+No other NFC reader sensors are part of the current listener architecture being carved out.
 
-Responsibilities:
+### AdvNFC - UID Gateway
 
-- listen to the configured NFC reader entities;
-- reject transitions to or from `unknown` or `unavailable` at the Home Assistant trigger boundary;
-- allow genuine valid UID-bearing state changes to continue;
-- supply the normalized downstream invocation context to `script.advnfc_uid_gateway`, including:
-  - scanned `uid`;
-  - originating `trigger_entity`.
+- Entity: `script.advnfc_uid_gateway`
+- Inputs:
+  - `uid`
+  - `trigger_entity` (default `sensor.pi_nfc_99_last_uid`)
+- Calls `script.advnfc_find_tag_record` with:
+  - `uid`
+- Captures the result as:
+  - `tag_record_response`
+- Stops with `No Tag Record Found` when the lookup is empty.
+- Stops with `Invalid Tag Record` when `intent_id` is absent or blank.
+- On success, temporarily creates `Tag Record Found` with UID, trigger entity, resolved intent ID, and optional tag area override.
+- Invokes the provider-owned ASTV Intent Invocation interface at `script.astv_intent_gateway` with:
+  - `intent_id` from `tag_record_response.intent_id`
+  - `input_area_override` from optional `tag_record_response.area_override`
+  - `trigger_entity`
 
-The initial extraction must preserve the existing stale-UID replay protection semantics rather than redesigning them.
+UID Gateway does not resolve the catalogue request or area itself and does not call Select Intent Engine directly.
 
-## AdvNFC UID Gateway
+#### AdvNFC - Fn: Find Tag Record
 
-Target entity:
+- Entity: `script.advnfc_find_tag_record`
+- Input: `uid`
+- Return: `tag_record_response`
+- Data dependency:
+  - AdvNFC Tag Mapping
+  - `advnfc_tag_mapping.yaml`
 
-`script.advnfc_uid_gateway`
+The function normalizes the supplied UID using string conversion, trimming, and uppercasing, then performs an exact mapping lookup. It returns `{}` for an unknown UID and remains side-effect-free.
 
-Inputs:
-
-- `uid`
-- `trigger_entity`
-
-Responsibilities:
-
-1. call `script.advnfc_find_tag_record` with the supplied UID;
-2. stop visibly when no tag record is found;
-3. stop visibly when the tag record contains no usable `intent_id`;
-4. extract:
-   - canonical `intent_id`;
-   - optional tag-level `area_override`;
-5. invoke the provider-owned ASTV Intent Invocation interface with:
-   - `intent_id`;
-   - `input_area_override` from the optional tag-level `area_override`;
-   - `trigger_entity`.
-
-The UID Gateway does not resolve ASTV intent records, resolve the final target area, select an ASTV intent engine, or perform downstream execution.
-
-## AdvNFC Find Tag Record
-
-Target entity:
-
-`script.advnfc_find_tag_record`
-
-Input:
-
-- `uid`
-
-Return:
-
-- tag-record response
-
-Data dependency:
-
-- `advnfc_tag_mapping.yaml`
-
-The function normalizes the supplied UID using string conversion, trimming, and uppercasing, then performs exact lookup against the AdvNFC tag mapping.
-
-An unknown UID returns an empty record. The lookup function remains side-effect-free.
-
-## AdvNFC Tag Mapping
-
-Target data source:
-
-`advnfc_tag_mapping.yaml`
-
-The mapping is owned by AdvNFC.
-
-Each usable tag record supplies at least:
-
-- `intent_id`
-
-and may optionally supply:
-
-- `area_override`
-
-The mapping does not contain ASTV intent-record internals, execution configuration, MediaCat records, endpoint definitions, or other downstream orchestration data.
-
-## ASTV Intent Invocation boundary
+## ASTV Intent Invocation Boundary
 
 AdvNFC consumes the provider-owned ASTV contract:
 
 `ASTV/03_Contracts/ASTV_INTENT_INVOCATION_INTERFACE.md`
 
-The boundary request is:
+The interface is provided by:
 
-- `intent_id` — required;
-- `input_area_override` — optional;
-- `trigger_entity` — optional.
+`script.astv_intent_gateway`
 
-No UID, tag record, MQTT topic, or reader-protocol data crosses the product boundary.
+The invocation fields are exactly those already passed by the current ASTV Phase 0 UID Gateway:
 
-ASTV owns all semantics after the invocation crosses into `script.astv_intent_gateway`, including:
+- `intent_id`
+- `input_area_override`
+- `trigger_entity`
 
-- intent-catalogue lookup;
-- ASTV intent-record interpretation;
-- final target-area resolution;
-- intent routing;
-- preparation and selection;
-- execution.
+No UID, tag record, MQTT topic, or reader-specific payload crosses the product boundary.
 
-## Area semantics at the boundary
+After the invocation crosses this boundary, ASTV owns intent-catalogue lookup, intent-record interpretation, final area resolution, intent routing, preparation, and execution.
 
-AdvNFC may provide an explicit tag-level caller override as `input_area_override` and may preserve the originating `trigger_entity`.
+The consumed ASTV contract preserves the current target-area precedence:
 
-AdvNFC does not resolve the final ASTV target area.
+1. non-blank `input_area_override`;
+2. non-blank `area_override` from the resolved ASTV intent record;
+3. the Home Assistant area of `trigger_entity`.
 
-Under the consumed ASTV contract, ASTV owns the precedence:
+AdvNFC does not reproduce or alter that precedence.
 
-1. caller `input_area_override`;
-2. ASTV intent-record `area_override`;
-3. Home Assistant area of `trigger_entity`.
+## External and Data Dependencies
 
-This precedence must remain a provider concern and must not be duplicated into AdvNFC.
+| Dependency | Type | Consumer or relationship |
+|---|---|---|
+| External NFC input | External input | Delivered over MQTT to the configured NFC reader sensors |
+| `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
+| `advnfc_tag_mapping.yaml` | Data source | Active AdvNFC Find Tag Record lookup after cutover |
+| ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
 
-## Failure boundaries
+## Interface Naming and Return Boundaries
 
-AdvNFC owns visible stopping behavior for:
+Exact established names are preserved where they describe the existing Phase 0 behavior. In particular:
 
-- filtered invalid/recovery reader transitions;
-- unknown UID / missing tag record;
-- invalid tag record with no usable `intent_id`;
-- inability to construct the contracted downstream invocation.
+- `uid`
+- `trigger_entity`
+- `tag_record_response`
+- `intent_id`
+- `input_area_override`
 
-Once the contracted invocation is issued, downstream failure behavior belongs to ASTV and its consumed/provider contracts.
+A caller's `response_variable` name describes how that caller captures a result. A child's returned payload name describes the child's own interface. These names are not renamed merely for documentary consistency.
 
-AdvNFC does not automatically select another tag, intent, area, or execution path after failure.
+## Migration Invariant
 
-## Migration invariant
+The extraction must preserve the current ASTV Phase 0 behavior.
 
-The initial extraction must be behavior-preserving.
+For the same valid reader state change and equivalent tag mapping, AdvNFC must produce the same ASTV Intent Invocation values as the current ASTV Phase 0 path:
 
-For the same usable reader event and equivalent tag mapping, the AdvNFC implementation must produce the same ASTV Intent Invocation request as the current ASTV Phase 0 path:
+- the same `intent_id`;
+- the same optional `input_area_override`;
+- the same `trigger_entity`.
 
-- same canonical `intent_id`;
-- same optional caller area override;
-- same originating trigger entity.
+Functional redesign of the reader inputs, transition filtering, UID normalization, tag mapping semantics, gateway failure behavior, or ASTV area-resolution semantics is outside the initial carve-out.
 
-Functional redesign of reader protocol, tag schema, area precedence, or ASTV behavior is outside the initial carve-out.
+## Current and Target Ownership
 
-## Current versus target ownership
+Until production cutover, the active Tag Listener, UID Gateway, Find Tag Record, and tag mapping remain part of the deployed ASTV Phase 0 implementation.
 
-### Current deployed state before cutover
+After successful cutover, those responsibilities move to AdvNFC under:
 
-ASTV Phase 0 currently owns and runs the active Tag Listener, UID Gateway, Find Tag Record, and tag mapping.
+- `automation.advnfc_tag_listener`
+- `script.advnfc_uid_gateway`
+- `script.advnfc_find_tag_record`
+- `advnfc_tag_mapping.yaml`
 
-### Target AdvNFC state
-
-AdvNFC owns equivalent responsibilities under the `advnfc_` namespace and invokes ASTV only through the provider-owned Intent Invocation interface.
-
-### Retirement rule
-
-ASTV Phase 0 source and ownership are retired only after the AdvNFC implementation is deployed and successfully proven through the separate governed cutover work.
+ASTV then begins at the provider-owned Intent Invocation boundary.
