@@ -1,0 +1,23 @@
+# AdvNFC automations
+automation:
+  - id: advnfc_tag_listener
+    alias: AdvNFC - Tag Listener
+    description: ''
+    triggers:
+    - entity_id:
+      - sensor.pi_nfc_02_last_uid
+      - sensor.pi_nfc_99_last_uid
+      not_from:
+      - unknown
+      - unavailable
+      not_to:
+      - unknown
+      - unavailable
+      trigger: state
+    actions:
+    - data:
+        uid: '{{ trigger.to_state.state | upper }}'
+        trigger_entity: '{{ trigger.entity_id }}'
+      action: script.advnfc_uid_gateway
+    mode: parallel
+    max: 10
