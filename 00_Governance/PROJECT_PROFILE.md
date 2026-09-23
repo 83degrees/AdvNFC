@@ -6,7 +6,7 @@ This profile contains the required product-profile subjects and is established u
 
 ## Document status
 
-- Governance state: candidate under ASTV-240
+- Governance state: current
 - Product bootstrap state: repository authority being established; no AdvNFC runtime is deployed by this issue
 
 ## Product identity
@@ -63,7 +63,7 @@ AdvNFC is the Home Assistant NFC interaction and intent-production product. It c
 
 - Approved architecture location: `01_Architecture/ADVNFC_ARCHITECTURE.md`
 - Governed diagram: `01_Architecture/Diagrams/ADVNFC_ARCHITECTURE.drawio`
-- Architecture state: candidate target architecture under ASTV-240; not yet deployed
+- Architecture state: current target architecture; not yet deployed
 - Material DDRs: none at bootstrap
 
 The Markdown file is the semantic architecture authority. The diagram is its governed representation.
@@ -76,7 +76,7 @@ AdvNFC provides no cross-product contract at bootstrap.
 
 | Contract | Status/version | Provider/owner | Authoritative location | Local use |
 | --- | --- | --- | --- | --- |
-| `ASTV_INTENT_INVOCATION_INTERFACE.md` | v1.0.0 candidate/current with ASTV-241 acceptance | ASTV | `ASTV/03_Contracts/ASTV_INTENT_INVOCATION_INTERFACE.md` | Canonical downstream intent invocation from AdvNFC into `script.astv_intent_gateway`. |
+| `ASTV_INTENT_INVOCATION_INTERFACE.md` | current v1.0.0 | ASTV | `ASTV/03_Contracts/ASTV_INTENT_INVOCATION_INTERFACE.md` | Canonical downstream intent invocation from AdvNFC into `script.astv_intent_gateway`. |
 
 The provider-owned ASTV contract is the sole operational authority for the cross-product request. AdvNFC must not maintain an authoritative duplicate.
 
