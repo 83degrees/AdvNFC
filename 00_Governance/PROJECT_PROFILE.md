@@ -74,7 +74,9 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 ## Contracts provided
 
-AdvNFC provides no cross-product contract at bootstrap.
+| Contract | Status/version | Provider/owner | Authoritative location | Local use |
+| --- | --- | --- | --- | --- |
+| `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | current v1.0.0 candidate | AdvNFC | `03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | Governs reader-agent MQTT publications consumed by downstream infrastructure, including the Home Assistant reader-sensor path. |
 
 ## Contracts consumed
 
@@ -89,7 +91,7 @@ The provider-owned ASTV contract is the sole operational authority for the cross
 | Dependency | Type | Owner | Governed interface/evidence | Required state | Failure boundary |
 | --- | --- | --- | --- | --- | --- |
 | Home Assistant | platform | Home Assistant | Future verified production evidence | Configured reader entities and required script/action surfaces available | No usable reader event reaches AdvNFC or downstream invocation cannot be issued. |
-| MQTT broker / network transport | external | Infrastructure owner | Production evidence | Reader-agent publications can reach Home Assistant | No reader event reaches the configured Home Assistant entities. |
+| MQTT broker / network transport | external | Infrastructure owner | `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` plus production evidence | Reader-agent publications can reach Home Assistant | No reader event reaches the configured Home Assistant entities. |
 | libnfc / ACR122U reader platform | external | Platform / hardware owners | ASTV-246 runtime evidence | `nfc-list` can acquire NFCID1 from the attached reader | Reader agent cannot acquire a UID. |
 | ASTV | product/service | ASTV | `ASTV_INTENT_INVOCATION_INTERFACE.md` | Contracted `script.astv_intent_gateway` entry point available | Invocation fails/stops at the provider-defined ASTV boundary. |
 | AdvNFC tag mapping | data | AdvNFC | Future `advnfc_tag_mapping.yaml` source baseline | Mapping file present and loadable | Unknown or invalid tag stops visibly before ASTV invocation. |

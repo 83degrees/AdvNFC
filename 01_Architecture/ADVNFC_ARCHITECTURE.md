@@ -41,6 +41,10 @@ The reader identity defaults to `hostname -s`. The captured `pi-nfc-02` runtime 
 
 ### Reader Outputs
 
+The two MQTT publications are governed by:
+
+`03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md`
+
 For each newly accepted UID, the reader agent preserves all three captured outputs:
 
 1. Home Assistant webhook `assistive_card_scan` with JSON fields `uid` and `reader`;
@@ -145,7 +149,7 @@ AdvNFC does not reproduce or alter that precedence.
 | ACR122U + Raspberry Pi platform | External hardware/platform | Provides physical NFC reads to the governed reader-agent software |
 | `libnfc` / `nfc-list` | External runtime dependency | Produces NFCID1 input consumed by the reader agent |
 | AdvNFC reader agent | AdvNFC-owned software | Acquires UID, applies captured suppression/reset behavior, and emits the existing webhook/MQTT outputs |
-| MQTT broker / network transport | External infrastructure | Carries reader-agent MQTT publications to Home Assistant |
+| MQTT broker / network transport | External infrastructure | Carries reader-agent MQTT publications defined by `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` to Home Assistant |
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
 | `advnfc_tag_mapping.yaml` | Data source | Active AdvNFC Find Tag Record lookup after cutover |
 | ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
