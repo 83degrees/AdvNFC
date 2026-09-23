@@ -115,4 +115,10 @@ These names identify target AdvNFC ownership. They do not claim that production 
 
 ## Repository source baseline
 
-No AdvNFC runtime source baseline is established by ASTV-240. Runtime source is introduced by the separately governed extraction issue after product authority and the ASTV invocation contract are accepted.
+ASTV-242 establishes the candidate AdvNFC runtime source baseline under:
+
+- `04_Source/config/packages/advnfc/advnfc_automations.yaml`
+- `04_Source/config/packages/advnfc/advnfc_scripts.yaml`
+- `04_Source/config/assistive/advnfc_tag_mapping.yaml`
+
+These files represent the extracted Phase 0 candidate source only. They do not establish production deployment or cutover. The active production NFC-entry implementation remains the ASTV Phase 0 implementation until the separately governed production cutover completes.
