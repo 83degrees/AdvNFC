@@ -22,13 +22,15 @@ WORK="$(mktemp -d)"
 ROOT="$WORK/root"
 trap 'rm -rf "$WORK"' EXIT
 
-mkdir -p   "$ROOT/DEBIAN"   "$ROOT/opt/advnfc/reader_agent"   "$ROOT/lib/systemd/system"   "$ROOT/lib/udev/rules.d"   "$ROOT/usr/local/sbin"   "$ROOT/usr/share/advnfc"
+mkdir -p   "$ROOT/DEBIAN"   "$ROOT/opt/advnfc/reader_agent"   "$ROOT/lib/systemd/system"   "$ROOT/lib/udev/rules.d"   "$ROOT/usr/local/sbin"   "$ROOT/usr/share/advnfc/profiles"   "$ROOT/usr/share/advnfc/secrets"
 
 install -m 0755 "$READER_DIR/advnfc_reader_agent.sh"   "$ROOT/opt/advnfc/reader_agent/advnfc_reader_agent.sh"
 install -m 0644 "$READER_DIR/systemd/advnfc-reader-agent.service"   "$ROOT/lib/systemd/system/advnfc-reader-agent.service"
 install -m 0755 "$SCRIPT_DIR/advnfc-reader-agent-check"   "$ROOT/usr/local/sbin/advnfc-reader-agent-check"
 install -m 0755 "$SCRIPT_DIR/advnfc-reader-agent-init"   "$ROOT/usr/local/sbin/advnfc-reader-agent-init"
-install -m 0644 "$READER_DIR/reader-agent.env.example"   "$ROOT/usr/share/advnfc/reader-agent.env.example"
+install -m 0755 "$SCRIPT_DIR/advnfc-profile"   "$ROOT/usr/local/sbin/advnfc-profile"
+install -m 0644 "$READER_DIR/profiles/"*.yaml   "$ROOT/usr/share/advnfc/profiles/"
+install -m 0640 "$READER_DIR/secrets/"*.env.example   "$ROOT/usr/share/advnfc/secrets/"
 
 cat >"$ROOT/opt/advnfc/reader_agent/VERSION" <<EOF
 version=$VERSION
@@ -46,7 +48,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: bash, coreutils, adduser, util-linux, libnfc-bin, mosquitto-clients, usbutils, udev, systemd
+Depends: bash, coreutils, adduser, util-linux, libnfc-bin, mosquitto-clients, usbutils, udev, systemd, python3, python3-yaml
 Maintainer: AdvNFC
 Description: Governed AdvNFC Raspberry Pi NFC reader agent
  Installs the AdvNFC reader agent, systemd unit, ACR122U access rule,
@@ -65,15 +67,16 @@ if ! id advnfc >/dev/null 2>&1; then
   adduser --system --ingroup advnfc --home /nonexistent --no-create-home --disabled-login advnfc
 fi
 
-mkdir -p /etc/advnfc
-chmod 0750 /etc/advnfc
+mkdir -p /etc/advnfc /etc/advnfc/profiles /etc/advnfc/secrets
+chown root:advnfc /etc/advnfc /etc/advnfc/profiles /etc/advnfc/secrets
+chmod 0750 /etc/advnfc /etc/advnfc/profiles /etc/advnfc/secrets
 
 udevadm control --reload-rules || true
 udevadm trigger --subsystem-match=usb || true
 systemctl daemon-reload
 systemctl enable advnfc-reader-agent.service >/dev/null 2>&1 || true
 
-# Fresh installs do not start the service before node-local configuration exists.
+# Fresh installs do not start the service before a validated active profile exists.
 # Upgrades restart only an already-running service.
 if systemctl is-active --quiet advnfc-reader-agent.service; then
   systemctl restart advnfc-reader-agent.service

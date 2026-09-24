@@ -45,7 +45,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install test dependency
-        run: python -m pip install pytest
+        run: python -m pip install pytest pyyaml
 
       - name: Validate shell syntax
         shell: bash
@@ -54,9 +54,10 @@ jobs:
           bash -n 04_Source/reader_agent/packaging/build_deb.sh
           bash -n 04_Source/reader_agent/packaging/advnfc-reader-agent-check
           bash -n 04_Source/reader_agent/packaging/advnfc-reader-agent-init
+          python -m py_compile 04_Source/reader_agent/packaging/advnfc-profile
 
       - name: Run reader packaging tests
-        run: python -m pytest -q 05_Tests/test_advnfc_packaging.py 05_Tests/test_advnfc_reader_agent.py
+        run: python -m pytest -q 05_Tests/test_advnfc_packaging.py 05_Tests/test_advnfc_reader_agent.py 05_Tests/test_advnfc_profiles.py
 
       - name: Build Debian package
         shell: bash

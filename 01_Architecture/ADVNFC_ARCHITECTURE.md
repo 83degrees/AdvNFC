@@ -55,6 +55,16 @@ AdvNFC owns the reader-agent source and its systemd/service configuration. Raspb
 
 Deployment-specific configuration is supplied outside source control. The MQTT password is not stored in the repository.
 
+### Reader-Agent Runtime Profiles
+
+ASTV-258 separates environment-specific configuration from reader-agent code. Named schema-v1 YAML profiles are node-local under `/etc/advnfc/profiles`, with `/etc/advnfc/active-profile.yaml` as the single authoritative selector.
+
+A profile contains non-secret MQTT host, port, username, credential reference, the governed `advnfc/{reader}/last_uid` topic pattern, and an optional reader identity override. The MQTT password is resolved separately from `/etc/advnfc/secrets/<credential_ref>.env`.
+
+The `advnfc-profile` management command provides `list`, `status`, `validate`, and `switch`. Switching validates the candidate profile and secret before activation, changes the selector atomically, restarts the reader service, verifies activation, and restores the previous profile if activation fails.
+
+Profiles do not control retained behavior, QoS, UID semantics, polling, debounce, reset behavior, tag meaning, or downstream ASTV behavior. Those remain governed by the reader code and interfaces.
+
 ### Reader-Agent Packaging and Update Model
 
 ASTV-255 establishes the target deployment model for the Raspberry Pi reader agent.

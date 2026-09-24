@@ -1,22 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
-TARGET=/etc/advnfc/reader-agent.env
-SOURCE=/usr/share/advnfc/reader-agent.env.example
-
 if [[ $EUID -ne 0 ]]; then
   echo "Run with sudo: sudo advnfc-reader-agent-init" >&2
   exit 1
 fi
 
-mkdir -p /etc/advnfc
-chmod 0750 /etc/advnfc
+install -d -m 0750 -o root -g advnfc /etc/advnfc /etc/advnfc/profiles /etc/advnfc/secrets
 
-if [[ -e "$TARGET" ]]; then
-  echo "$TARGET already exists; leaving it unchanged."
-  exit 0
-fi
+for source in /usr/share/advnfc/profiles/*.yaml; do
+  [[ -e "$source" ]] || continue
+  target="/etc/advnfc/profiles/$(basename "$source")"
+  if [[ ! -e "$target" ]]; then
+    install -m 0644 -o root -g advnfc "$source" "$target"
+    echo "Created profile: $target"
+  fi
+done
 
-install -m 0600 -o root -g root "$SOURCE" "$TARGET"
-echo "Created $TARGET from the non-secret example."
-echo "Edit MQTT_HOST/MQTT_USER/MQTT_PASS before starting the service."
+for source in /usr/share/advnfc/secrets/*.env.example; do
+  [[ -e "$source" ]] || continue
+  base="$(basename "$source" .example)"
+  target="/etc/advnfc/secrets/$base"
+  if [[ ! -e "$target" ]]; then
+    install -m 0640 -o root -g advnfc "$source" "$target"
+    echo "Created secret placeholder: $target"
+  fi
+done
+
+echo
+echo "Profiles and secret placeholders are installed without selecting an environment."
+echo "Replace the MQTT_PASS placeholder for the profile you intend to use, then run:"
+echo "  sudo advnfc-profile switch <profile>"

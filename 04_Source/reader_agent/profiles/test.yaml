@@ -1,0 +1,9 @@
+schema_version: 1
+name: test
+mqtt:
+  host: localhost
+  port: 1883
+  username: ha_mqtt
+  credential_ref: test_mqtt
+  topic_pattern: advnfc/{reader}/last_uid
+reader: {}

@@ -10,7 +10,7 @@ ASTV-255 uses a staged distribution model:
 4. keep node-local configuration and secrets outside the package under `/etc/advnfc/`;
 5. consider an APT repository only when the number/frequency of managed reader nodes makes it worthwhile.
 
-The package is the governed software unit. `/etc/advnfc/` is the node-local configuration boundary.
+The package is the governed software unit. `/etc/advnfc/` is the node-local configuration boundary. ASTV-258 stores named non-secret profiles under `/etc/advnfc/profiles`, referenced MQTT passwords under `/etc/advnfc/secrets`, and the persistent active selector at `/etc/advnfc/active-profile.yaml`.
 
 ## Build
 
@@ -29,9 +29,10 @@ The package is written to `dist/` by default and embeds both package version and
 ```bash
 sudo apt install ./advnfc-reader-agent_<version>_<arch>.deb
 sudo advnfc-reader-agent-init
-sudoedit /etc/advnfc/reader-agent.env
+sudoedit /etc/advnfc/secrets/<credential_ref>.env
+sudo advnfc-profile validate <profile>
+sudo advnfc-profile switch <profile>
 sudo advnfc-reader-agent-check
-sudo systemctl start advnfc-reader-agent.service
 ```
 
 The package enables the service but deliberately does not start a fresh install before node-local configuration is present.
@@ -43,7 +44,7 @@ sudo apt install ./advnfc-reader-agent_<new-version>_<arch>.deb
 sudo advnfc-reader-agent-check
 ```
 
-The package never owns `/etc/advnfc/reader-agent.env`, so upgrades do not overwrite credentials or node-local values. If the service was already active, package post-install restarts it after files are replaced.
+The package never owns `/etc/advnfc/profiles`, `/etc/advnfc/secrets`, or `/etc/advnfc/active-profile.yaml`, so upgrades do not overwrite credentials, node-local profiles, or the selected profile. If the service was already active, package post-install restarts it after files are replaced.
 
 ## Rollback
 
@@ -69,7 +70,7 @@ Removal stops/disables the service but preserves `/etc/advnfc/`. Node-local conf
 - package version metadata;
 - `nfc-list`, `mosquitto_pub`, `lsusb`, and `timeout`;
 - dedicated `advnfc` service account;
-- node-local environment file with a non-placeholder MQTT password;
+- active profile schema and referenced non-placeholder MQTT secret;
 - ACS ACR122U USB ID `072f:2200`;
 - successful `nfc-list` communication with a reader.
 
@@ -84,3 +85,17 @@ The package creates a dedicated `advnfc` system account and an ACR122U udev rule
 ## Distribution evolution
 
 A GitHub Release artefact is the initial distribution mechanism because it provides versioned provenance without the operational overhead of an APT repository. An APT feed remains a future optimisation, not a prerequisite for repeatable test/deployment cycles.
+
+
+## Profile operations
+
+Named profiles are managed through:
+
+```bash
+advnfc-profile list
+advnfc-profile status
+advnfc-profile validate [profile]
+sudo advnfc-profile switch <profile>
+```
+
+The switch operation validates first, changes the selector atomically, restarts the service, verifies activation, and restores the previous profile if activation fails. See `../profiles/README.md` for the schema and secrets boundary.

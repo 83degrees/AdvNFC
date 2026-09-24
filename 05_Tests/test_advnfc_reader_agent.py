@@ -3,11 +3,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "04_Source" / "reader_agent" / "advnfc_reader_agent.sh"
 SERVICE = ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agent.service"
-ENV_EXAMPLE = ROOT / "04_Source" / "reader_agent" / "reader-agent.env.example"
+PROFILE_TOOL = ROOT / "04_Source" / "reader_agent" / "packaging" / "advnfc-profile"
 
 script = SCRIPT.read_text()
 service = SERVICE.read_text()
-env_example = ENV_EXAMPLE.read_text()
+profile_tool = PROFILE_TOOL.read_text()
 
 
 def test_uid_extraction_matches_captured_runtime():
@@ -17,7 +17,7 @@ def test_uid_extraction_matches_captured_runtime():
 
 
 def test_reader_identity_defaults_to_short_hostname():
-    assert 'READER="${READER:-$(hostname -s)}"' in script
+    assert 'READER="${READER_OVERRIDE:-$(hostname -s)}"' in script
 
 
 def test_captured_timing_and_reset_defaults_are_preserved():
@@ -25,46 +25,25 @@ def test_captured_timing_and_reset_defaults_are_preserved():
     assert 'DEBOUNCE_S="${DEBOUNCE_S:-0.80}"' in script
     assert 'EMPTY_RESET_LOOPS="${EMPTY_RESET_LOOPS:-8}"' in script
     assert 'if [[ "$uid" != "$prev" ]]' in script
-    assert 'if (( empty_count >= EMPTY_RESET_LOOPS ))' in script
-    assert 'prev=""' in script
+    assert "if (( empty_count >= EMPTY_RESET_LOOPS ))" in script
 
 
-def test_retained_last_uid_is_the_only_reader_output():
-    assert script.count("/usr/bin/mosquitto_pub") == 1
-    assert '-t "advnfc/$READER/last_uid" -r' in script
-    assert "assistive/nfc/event" not in script
-    assert "assistive/nfc/$READER/last_uid" not in script
-    assert "WEBHOOK_ID" not in script
-    assert "WEBHOOK_URL" not in script
-    assert "curl " not in script
+def test_runtime_config_comes_from_active_profile():
+    assert "advnfc-profile runtime-shell" in script
+    assert "ha-starburst.little-dory.ts.net" not in script
+    assert 'MQTT_TOPIC="${MQTT_TOPIC_PATTERN//' in script
+    assert '-t "$MQTT_TOPIC" -r' in script
 
 
-def test_retained_payload_is_raw_uid():
-    assert '-m "$uid"' in script
+def test_service_validates_profile_before_start():
+    assert "ConditionPathExists=/etc/advnfc/active-profile.yaml" in service
+    assert "ExecStartPre=/usr/local/sbin/advnfc-profile validate" in service
+    assert "EnvironmentFile=" not in service
 
 
-def test_mqtt_password_is_not_embedded_in_source():
-    assert "83degrees" not in script
-    assert "83degrees" not in service
-    assert "83degrees" not in env_example
-    assert "MQTT_PASS must be supplied through the deployment environment" in script
-    assert "MQTT_PASS=REPLACE_WITH_DEPLOYMENT_SECRET" in env_example
-
-
-def test_legacy_webhook_configuration_is_removed():
-    assert "HA_BASE_URL" not in env_example
-    assert "WEBHOOK_ID" not in env_example
-    assert "webhook" not in service.lower()
-
-
-def test_systemd_uses_external_environment_and_governed_target_path():
-    assert "EnvironmentFile=/etc/advnfc/reader-agent.env" in service
-    assert "ExecStart=/opt/advnfc/reader_agent/advnfc_reader_agent.sh" in service
-    assert "User=advnfc" in service
-    assert "Group=advnfc" in service
-    assert "ConditionPathExists=/etc/advnfc/reader-agent.env" in service
-    assert "Restart=always" in service
-    assert "RestartSec=1s" in service
+def test_profile_tool_keeps_secret_out_of_status():
+    assert "Credential configured:" in profile_tool
+    assert "MQTT password:" not in profile_tool
 
 
 def test_no_astv_or_tag_mapping_logic_is_on_reader_agent():

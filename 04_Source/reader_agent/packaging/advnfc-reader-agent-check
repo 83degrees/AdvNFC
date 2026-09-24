@@ -7,7 +7,6 @@ warn() { printf 'WARN %s\n' "$*"; }
 bad()  { printf 'FAIL %s\n' "$*"; fail=1; }
 
 VERSION_FILE=/opt/advnfc/reader_agent/VERSION
-ENV_FILE=/etc/advnfc/reader-agent.env
 
 echo "AdvNFC reader-agent readiness check"
 
@@ -17,7 +16,7 @@ else
   bad "version metadata missing: $VERSION_FILE"
 fi
 
-for cmd in nfc-list mosquitto_pub lsusb timeout; do
+for cmd in nfc-list mosquitto_pub lsusb timeout python3 advnfc-profile; do
   if command -v "$cmd" >/dev/null 2>&1; then
     ok "$cmd available"
   else
@@ -31,13 +30,16 @@ else
   bad "advnfc system account missing"
 fi
 
-if [[ -f "$ENV_FILE" ]]; then
-  ok "node configuration exists: $ENV_FILE"
-  if grep -q '^MQTT_PASS=REPLACE_WITH_DEPLOYMENT_SECRET$' "$ENV_FILE"; then
-    bad "MQTT password placeholder has not been replaced"
+if [[ -L /etc/advnfc/active-profile.yaml ]]; then
+  if runuser -u advnfc -- advnfc-profile validate >/dev/null 2>&1; then
+    ok "active profile and referenced secret validate"
+    runuser -u advnfc -- advnfc-profile status 2>/dev/null | sed 's/^/INFO /'
+  else
+    bad "active profile or referenced secret is invalid"
+    runuser -u advnfc -- advnfc-profile validate 2>&1 | tail -n 5
   fi
 else
-  bad "node configuration missing; run sudo advnfc-reader-agent-init"
+  bad "active profile missing; run sudo advnfc-profile switch <profile>"
 fi
 
 if lsusb -d 072f:2200 >/dev/null 2>&1; then

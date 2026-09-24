@@ -2,12 +2,12 @@
 Description=AdvNFC Reader Agent (libnfc -> MQTT)
 After=network-online.target
 Wants=network-online.target
-ConditionPathExists=/etc/advnfc/reader-agent.env
+ConditionPathExists=/etc/advnfc/active-profile.yaml
 
 [Service]
 User=advnfc
 Group=advnfc
-EnvironmentFile=/etc/advnfc/reader-agent.env
+ExecStartPre=/usr/local/sbin/advnfc-profile validate
 ExecStart=/opt/advnfc/reader_agent/advnfc_reader_agent.sh
 Restart=always
 RestartSec=1s
