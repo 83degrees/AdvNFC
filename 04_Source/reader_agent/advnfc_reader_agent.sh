@@ -36,7 +36,7 @@ while true; do
       sleep "$DEBOUNCE_S"
     fi
   else
-    ((empty_count++))
+    ((++empty_count))
     if (( empty_count >= EMPTY_RESET_LOOPS )); then
       prev=""
       empty_count=0

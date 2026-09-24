@@ -28,6 +28,12 @@ def test_captured_timing_and_reset_defaults_are_preserved():
     assert "if (( empty_count >= EMPTY_RESET_LOOPS ))" in script
 
 
+
+def test_idle_poll_increment_is_safe_under_errexit():
+    assert "set -euo pipefail" in script
+    assert "((++empty_count))" in script
+    assert "((empty_count++))" not in script
+
 def test_runtime_config_comes_from_active_profile():
     assert "advnfc-profile runtime-shell" in script
     assert "ha-starburst.little-dory.ts.net" not in script
