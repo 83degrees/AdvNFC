@@ -9,7 +9,7 @@ SERVICE = (ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agen
 
 
 def test_package_declares_runtime_dependencies():
-    for dep in ("libnfc-bin", "mosquitto-clients", "usbutils"):
+    for dep in ("adduser", "util-linux", "libnfc-bin", "mosquitto-clients", "usbutils", "udev", "systemd"):
         assert dep in BUILD
 
 
@@ -38,7 +38,7 @@ def test_package_installs_acr122u_access_rule():
 
 def test_readiness_check_covers_reader_stack():
     assert "lsusb -d 072f:2200" in CHECK
-    assert "nfc-list" in CHECK
+    assert "runuser -u advnfc -- timeout 8 nfc-list" in CHECK
     assert "mosquitto_pub" in CHECK
     assert "MQTT_PASS=REPLACE_WITH_DEPLOYMENT_SECRET" in CHECK
 
