@@ -72,7 +72,7 @@ Removal stops/disables the service but preserves `/etc/advnfc/`. Node-local conf
 - dedicated `advnfc` service account;
 - active profile schema and referenced non-placeholder MQTT secret;
 - ACS ACR122U USB ID `072f:2200`;
-- effective ACR122U device ownership by the `advnfc` group;\n- successful, error-free `nfc-list` communication with a reader as the `advnfc` service account.\n\nWhen the reader service is already active, the readiness tool briefly stops it to obtain exclusive reader access for the direct `nfc-list` probe, then restores the service to its prior active state.
+- effective ACR122U device ownership by the `advnfc` group;\n- successful, error-free `nfc-list` communication with a reader as the `advnfc` service account.\n\nWhen the reader service is already active, the readiness tool briefly stops it, waits three seconds for the ACR122U/PN532 interface to settle, performs the direct `nfc-list` probe, then restores the service to its prior active state.
 
 Service enabled/active state is reported separately so the check can be used before first start.
 

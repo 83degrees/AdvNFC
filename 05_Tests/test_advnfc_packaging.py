@@ -62,6 +62,14 @@ def test_readiness_check_validates_profile_and_reader_stack():
     assert "mosquitto_pub" in CHECK
 
 
+def test_readiness_allows_reader_to_settle_after_service_stop():
+    stop = 'systemctl stop "$service"'
+    probe = 'runuser -u advnfc -- timeout 8 nfc-list'
+    assert stop in CHECK
+    assert "sleep 3" in CHECK
+    assert CHECK.index(stop) < CHECK.index("sleep 3") < CHECK.index(probe)
+
+
 def _reader_output_ok(output: str, rc: int = 0) -> bool:
     command = (
         f'source "{CHECK_PATH}"; '
