@@ -30,7 +30,7 @@ while true; do
 
       /usr/bin/mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" \
         -u "$MQTT_USER" -P "$MQTT_PASS" \
-        -t "assistive/nfc/$READER/last_uid" -r \
+        -t "advnfc/$READER/last_uid" -r \
         -m "$uid"
 
       prev="$uid"
