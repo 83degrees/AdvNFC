@@ -45,12 +45,32 @@ part of the Home Assistant AdvNFC consumption path. The retained per-reader MQTT
 topic, payload, reader identity, polling, debounce, and reset semantics remain
 unchanged. The namespace rename is intentionally deferred to ASTV-257.
 
-## Target deployment layout
+## Deployment model
+
+ASTV-255 introduces a versioned Debian package for repeatable reader-node
+installation, upgrade and rollback.
+
+Package-owned software:
 
 - Script: `/opt/advnfc/reader_agent/advnfc_reader_agent.sh`
-- Environment: `/etc/advnfc/reader-agent.env`
+- Version identity: `/opt/advnfc/reader_agent/VERSION`
 - systemd unit: `advnfc-reader-agent.service`
+- readiness tool: `advnfc-reader-agent-check`
+- configuration initializer: `advnfc-reader-agent-init`
+- ACR122U udev access rule
+- non-secret environment example
 
-ASTV-249 established the governed production reader-agent deployment. ASTV-256
-is a repository/Beta cleanup candidate only and must not be deployed to
-`pi-nfc-02`; runtime validation will use a separate test reader device.
+Node-local state remains outside package ownership:
+
+- `/etc/advnfc/reader-agent.env`
+- MQTT credentials and node-specific values
+
+The service uses the dedicated system account `advnfc`. This removes the
+packaging dependency on a particular interactive login account such as
+`pi01`.
+
+See `packaging/README.md` for build, install, upgrade, rollback and uninstall
+procedures.
+
+The ASTV-255 package is to be validated on a separate test reader device before
+it is considered for any production reader deployment.
