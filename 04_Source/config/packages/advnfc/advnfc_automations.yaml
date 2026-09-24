@@ -7,6 +7,7 @@ automation:
     - entity_id:
       - sensor.pi_nfc_02_last_uid
       - sensor.pi_nfc_99_last_uid
+      - sensor.pi_nfc_01_last_uid
       not_from:
       - unknown
       - unavailable
