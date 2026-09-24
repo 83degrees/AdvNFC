@@ -2,6 +2,7 @@
 Description=AdvNFC Reader Agent (libnfc -> MQTT)
 After=network-online.target
 Wants=network-online.target
+ConditionPathExists=/etc/advnfc/reader-agent.env
 
 [Service]
 User=advnfc
