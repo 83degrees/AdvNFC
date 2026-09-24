@@ -33,6 +33,8 @@ def test_package_records_version_and_git_identity():
 def test_package_creates_dedicated_runtime_account():
     assert "adduser --system" in BUILD
     assert "User=advnfc" in SERVICE
+    assert "Group=advnfc" in SERVICE
+    assert "ConditionPathExists=/etc/advnfc/reader-agent.env" in SERVICE
 
 
 def test_package_installs_acr122u_access_rule():
