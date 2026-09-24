@@ -79,3 +79,14 @@ procedures.
 
 The ASTV-255 package is to be validated on a separate test reader device before
 it is considered for any production reader deployment.
+
+
+## ASTV-258 runtime profiles
+
+Environment-specific non-secret configuration is supplied by a named YAML profile under `/etc/advnfc/profiles`. The stable selector `/etc/advnfc/active-profile.yaml` identifies the active profile.
+
+Profiles contain MQTT host, port, username, credential reference, the governed `advnfc/{reader}/last_uid` topic pattern, and an optional reader-identity override. MQTT passwords remain separately protected under `/etc/advnfc/secrets/<credential_ref>.env`.
+
+The reader agent resolves the selected profile at startup through `advnfc-profile runtime-shell`; it no longer contains environment-specific broker addresses or topic prefixes. Protocol behavior such as retained publication, UID payload, polling, debounce, and reset semantics remains governed code/contract behavior rather than profile-selectable behavior.
+
+Users manage profiles with `advnfc-profile list|status|validate|switch`. Switching validates the requested profile and secret before activation and rolls back automatically if the service cannot start successfully.
