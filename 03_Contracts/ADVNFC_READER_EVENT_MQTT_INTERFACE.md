@@ -4,15 +4,18 @@
 
 - Interface: AdvNFC Reader Event MQTT Interface
 - Provider/owner: AdvNFC
-- Version: 1.0.0
-- Status: current candidate
-- Baseline authority: captured `pi-nfc-02` runtime evidence from ASTV-246
+- Version: 2.0.0
+- Status: candidate
+- Change authority: ASTV-256
+- Production status: not deployed; production remains on the accepted 1.0.0 behavior until separately validated and promoted
 
 ## Purpose
 
-This contract defines the MQTT publications emitted by the AdvNFC reader agent and consumed by downstream infrastructure, including the Home Assistant reader-sensor path.
+This contract defines the MQTT publication emitted by the AdvNFC reader agent and consumed by downstream infrastructure, including the Home Assistant reader-sensor path.
 
-It formalises the current production semantics only. It does not rename topics or redesign reader behavior.
+Version 2.0.0 removes migration-era compatibility outputs that are not part of the current AdvNFC Home Assistant consumption path. MQTT remains the reader transport.
+
+This contract does not rename the retained topic namespace. Namespace migration is governed separately by ASTV-257.
 
 ## Publisher identity
 
@@ -22,53 +25,15 @@ The default reader identity is:
 
 `hostname -s`
 
-For the captured production node this resolves to:
+The reader identity is used as the `<reader>` topic segment.
 
-`pi-nfc-02`
-
-The reader identity is used as the `<reader>` topic segment and in the event payload.
-
-## Topic 1: Reader Event
-
-### Topic
-
-`assistive/nfc/event`
-
-### Retain
-
-Not retained.
-
-### QoS
-
-The publisher does not specify QoS to `mosquitto_pub`; therefore the client default applies.
-
-### Payload
-
-JSON object with exactly these current fields:
-
-- `uid` — uppercase UID string extracted from NFCID1;
-- `reader` — reader identity;
-- `ts` — ISO-8601 timestamp generated at send time.
-
-Example shape:
-
-```json
-{
-  "uid": "DEADLBC",
-  "reader": "pi-nfc-02",
-  "ts": "2026-09-23T21:00:00+01:00"
-}
-```
-
-The example is illustrative only; consumers must not treat the example values as fixed.
-
-## Topic 2: Per-reader Last UID State
+## Per-reader Last UID State
 
 ### Topic pattern
 
 `assistive/nfc/<reader>/last_uid`
 
-For the captured production node:
+For the current production reader:
 
 `assistive/nfc/pi-nfc-02/last_uid`
 
@@ -100,27 +65,36 @@ After publication:
 
 - the UID is remembered;
 - repeated reads of the same continuously present card are suppressed;
-- the agent applies the captured post-send debounce;
+- the agent applies the configured post-send debounce;
 - the remembered UID is cleared only after the configured consecutive-empty-poll threshold is reached.
 
-The current captured defaults are:
+The current defaults remain:
 
 - poll interval: 0.20 seconds;
 - post-send debounce: 0.80 seconds;
 - empty reset threshold: 8 polls.
 
-These timing values describe current publisher behavior. Consumers must not depend on sub-second timing as a durable ordering guarantee.
+Consumers must not depend on sub-second timing as a durable ordering guarantee.
 
 ## Home Assistant consumption
 
-The current Home Assistant AdvNFC path consumes the retained per-reader state topic through configured MQTT-backed sensor entities such as:
+The AdvNFC Home Assistant path consumes the retained per-reader state topic through configured MQTT-backed sensor entities such as:
 
 - `sensor.pi_nfc_02_last_uid`
 - `sensor.pi_nfc_99_last_uid`
 
 Home Assistant state transitions are subsequently filtered by `automation.advnfc_tag_listener`.
 
-The generic `assistive/nfc/event` topic is a separate publication and is not the current Tag Listener input.
+## Removed compatibility outputs
+
+Version 2.0.0 removes these migration-era reader-agent outputs:
+
+- Home Assistant webhook `assistive_card_scan`;
+- non-retained generic MQTT event `assistive/nfc/event`.
+
+Neither output is part of the current governed AdvNFC Tag Listener input path.
+
+The webhook removal also removes the reader-agent dependency on `curl`.
 
 ## Delivery and failure boundary
 
@@ -133,7 +107,7 @@ AdvNFC does not own:
 - Home Assistant MQTT integration;
 - retained-message delivery performed by the broker.
 
-The current reader agent invokes `mosquitto_pub` synchronously but does not implement an application-level acknowledgement, retry queue, or deduplication across process restarts.
+The reader agent invokes `mosquitto_pub` synchronously but does not implement an application-level acknowledgement, retry queue, or deduplication across process restarts.
 
 A consumer must therefore not infer guaranteed exactly-once delivery from this interface.
 
@@ -142,9 +116,8 @@ A consumer must therefore not infer guaranteed exactly-once delivery from this i
 Consumers may rely on:
 
 - uppercase UID payloads;
-- reader identity in the topic and event payload as defined above;
-- retained behavior of the per-reader `last_uid` topic;
-- the event topic being non-retained under the current interface.
+- reader identity in the retained topic as defined above;
+- retained behavior of the per-reader `last_uid` topic.
 
 Consumers must not infer:
 
@@ -159,7 +132,6 @@ Consumers must not infer:
 
 This interface does not govern:
 
-- the Home Assistant webhook output `assistive_card_scan`;
 - tag-to-intent mapping;
 - ASTV intent invocation;
 - MQTT credentials;
@@ -168,4 +140,8 @@ This interface does not govern:
 
 ## Compatibility
 
-Version 1.0.0 formalises the captured production behavior. Any incompatible change to topic structure, payload shape, retain semantics, or reader identity semantics requires governed compatibility assessment and a contract version change.
+Version 2.0.0 is intentionally incompatible with version 1.0.0 for consumers of the removed webhook or generic event output.
+
+Consumers of the retained `assistive/nfc/<reader>/last_uid` topic retain the same topic pattern, payload, retain semantics, reader identity semantics, polling, debounce, and reset behavior.
+
+Any later incompatible change to the retained topic structure, payload shape, retain semantics, or reader identity semantics requires a further governed compatibility assessment and contract version change.
