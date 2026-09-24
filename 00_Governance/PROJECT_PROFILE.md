@@ -130,7 +130,7 @@ ASTV-242 establishes the candidate AdvNFC runtime source baseline under:
 
 These files are the accepted AdvNFC Home Assistant source baseline following production cutover.
 
-ASTV-247 additionally establishes the candidate Raspberry Pi reader-agent source baseline under:
+ASTV-247 additionally establishes the Raspberry Pi reader-agent source baseline under:
 
 - `04_Source/reader_agent/advnfc_reader_agent.sh`
 - `04_Source/reader_agent/systemd/advnfc-reader-agent.service`
