@@ -46,12 +46,12 @@ else
   bad "ACR122U USB device 072f:2200 not detected"
 fi
 
-nfc_output="$(timeout 8 nfc-list 2>&1)"
+nfc_output="$(runuser -u advnfc -- timeout 8 nfc-list 2>&1)"
 nfc_rc=$?
 if [[ $nfc_rc -eq 0 ]] && grep -Eqi 'NFC device|ACR122|ACS' <<<"$nfc_output"; then
-  ok "nfc-list can communicate with an NFC reader"
+  ok "nfc-list can communicate with an NFC reader as service account advnfc"
 else
-  bad "nfc-list reader check failed"
+  bad "nfc-list reader check failed as service account advnfc"
   printf '%s\n' "$nfc_output" | tail -n 8
 fi
 
