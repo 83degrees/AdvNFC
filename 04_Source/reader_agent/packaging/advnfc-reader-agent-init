@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET=/etc/advnfc/reader-agent.env
+SOURCE=/usr/share/advnfc/reader-agent.env.example
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Run with sudo: sudo advnfc-reader-agent-init" >&2
+  exit 1
+fi
+
+mkdir -p /etc/advnfc
+chmod 0750 /etc/advnfc
+
+if [[ -e "$TARGET" ]]; then
+  echo "$TARGET already exists; leaving it unchanged."
+  exit 0
+fi
+
+install -m 0600 -o root -g root "$SOURCE" "$TARGET"
+echo "Created $TARGET from the non-secret example."
+echo "Edit MQTT_HOST/MQTT_USER/MQTT_PASS before starting the service."

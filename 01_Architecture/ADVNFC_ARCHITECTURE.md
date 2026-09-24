@@ -55,6 +55,52 @@ AdvNFC owns the reader-agent source and its systemd/service configuration. Raspb
 
 Deployment-specific configuration is supplied outside source control. The MQTT password is not stored in the repository.
 
+### Reader-Agent Packaging and Update Model
+
+ASTV-255 establishes the target deployment model for the Raspberry Pi reader agent.
+
+The governed software unit is a versioned Debian package named `advnfc-reader-agent`. The package is built from the governed repository source and is intended to be distributed initially as a versioned GitHub Release artefact. An APT repository is not required for the initial deployment model and may be introduced later if reader-node scale or update frequency justifies it.
+
+The package owns:
+
+- `/opt/advnfc/reader_agent/advnfc_reader_agent.sh`;
+- `/opt/advnfc/reader_agent/VERSION`;
+- `advnfc-reader-agent.service`;
+- the ACR122U udev access rule;
+- the `advnfc-reader-agent-check` readiness command;
+- the `advnfc-reader-agent-init` configuration initializer;
+- a non-secret example environment file.
+
+Node-local state is outside package ownership:
+
+- `/etc/advnfc/reader-agent.env`;
+- MQTT credentials;
+- node-specific broker values;
+- any future selected runtime profile or local overrides.
+
+Package installation and upgrade must not overwrite node-local configuration or secrets.
+
+The package creates a dedicated `advnfc` system account and runs the reader service under that identity rather than relying on a host-specific login account. The package also installs an ACR122U udev rule for USB vendor/product `072f:2200` so the service account has a deterministic hardware-access boundary.
+
+Required runtime dependencies are declared by the Debian package and installed through the operating-system package manager. The initial dependency set includes the NFC and MQTT client tooling required by the governed reader agent plus the utilities used for deterministic readiness checks.
+
+A fresh package install enables but does not start the reader service before node-local configuration exists. An existing active installation is restarted after an upgrade so the new governed software version becomes active while preserving the external configuration.
+
+The installed software identity is recorded in `/opt/advnfc/reader_agent/VERSION`, including both package version and source Git commit. This provides traceability from a reader node back to the governed repository/release.
+
+`advnfc-reader-agent-check` is the mandatory readiness mechanism before first service start and after package changes. It checks:
+
+- required commands;
+- the dedicated service account;
+- presence of node-local configuration and replacement of the example MQTT password;
+- detection of the ACR122U USB device;
+- successful `nfc-list` communication while running as the same `advnfc` service identity;
+- service enabled/active state as operational diagnostics.
+
+Rollback uses a previously retained governed `.deb` artefact installed explicitly with package-manager downgrade support. Uninstall removes governed software/service ownership while deliberately preserving `/etc/advnfc/`.
+
+This packaging model does not alter MQTT topic/payload semantics, tag meaning, or the downstream AdvNFC/ASTV boundary. Those remain governed independently.
+
 ## NFC Entry and Tag-to-Intent Resolution
 
 ### External NFC Input and Reader Sensors
