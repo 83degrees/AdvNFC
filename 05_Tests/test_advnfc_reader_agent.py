@@ -31,8 +31,9 @@ def test_captured_timing_and_reset_defaults_are_preserved():
 
 def test_retained_last_uid_is_the_only_reader_output():
     assert script.count("/usr/bin/mosquitto_pub") == 1
-    assert '-t "assistive/nfc/$READER/last_uid" -r' in script
+    assert '-t "advnfc/$READER/last_uid" -r' in script
     assert "assistive/nfc/event" not in script
+    assert "assistive/nfc/$READER/last_uid" not in script
     assert "WEBHOOK_ID" not in script
     assert "WEBHOOK_URL" not in script
     assert "curl " not in script

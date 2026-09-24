@@ -19,15 +19,20 @@ captured from `pi-nfc-02` under ASTV-246.
 webhook output. ASTV-256 removes that compatibility output from the candidate,
 so `curl` is no longer a reader-agent runtime dependency.
 
-## ASTV-256 cleanup candidate
+## ASTV-257 namespace candidate
 
 For each newly accepted UID the candidate emits one governed output:
 
-- retained raw UID on `assistive/nfc/<reader>/last_uid`.
+- retained raw UID on `advnfc/<reader>/last_uid`.
 
 The historical Home Assistant webhook `assistive_card_scan` and generic
-non-retained MQTT event `assistive/nfc/event` are removed from this candidate.
-MQTT remains the reader transport.
+non-retained MQTT event `assistive/nfc/event` remain removed. MQTT remains the
+reader transport.
+
+The currently deployed `pi-nfc-02` service is an explicit temporary exception:
+it remains untouched on `assistive/nfc/pi-nfc-02/last_uid` until physical
+retirement. This candidate is for the separately validated replacement/test
+reader and must not be remotely deployed to `pi-nfc-02`.
 
 The reader identity remains `hostname -s` unless explicitly overridden.
 Polling remains 0.20 seconds, post-send debounce remains 0.80 seconds, and the
@@ -40,10 +45,10 @@ The governed AdvNFC candidate does **not** reproduce that secret. Deployment
 configuration is supplied through `/etc/advnfc/reader-agent.env`; a non-secret
 example is included in this directory.
 
-ASTV-256 additionally removes migration-era compatibility outputs that are not
-part of the Home Assistant AdvNFC consumption path. The retained per-reader MQTT
-topic, payload, reader identity, polling, debounce, and reset semantics remain
-unchanged. The namespace rename is intentionally deferred to ASTV-257.
+ASTV-256 removed migration-era compatibility outputs that are not part of the
+Home Assistant AdvNFC consumption path. ASTV-257 now changes only the canonical
+retained topic namespace to `advnfc/<reader>/last_uid`; payload, reader identity,
+polling, debounce, and reset semantics remain unchanged.
 
 ## Deployment model
 
