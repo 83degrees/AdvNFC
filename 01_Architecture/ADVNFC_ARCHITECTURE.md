@@ -12,25 +12,25 @@ The Home Assistant portion of this architecture is the deployed AdvNFC runtime e
 
 ASTV-247 extends AdvNFC source authority upstream to the Raspberry Pi reader-agent software captured from `pi-nfc-02`. That reader-agent source is a governed deployment candidate only until ASTV-249 performs and proves the production deployment.
 
-The reader-agent import is behavior-preserving. Existing UID acquisition, same-card suppression/reset behavior, Home Assistant webhook output, MQTT event output, retained per-reader `last_uid` output, topic names, payloads, polling, and debounce semantics are retained. The only intentional source-boundary change is removal of the embedded MQTT secret from source control.
+ASTV-249 deployed the governed reader-agent baseline. ASTV-256 defines a cleanup candidate that preserves UID acquisition, same-card suppression/reset behavior, the retained per-reader `last_uid` MQTT output, topic name, payload, polling, and debounce semantics while removing the migration-era Home Assistant webhook and generic MQTT event outputs. MQTT remains the reader transport. The namespace rename remains outside this change and is governed by ASTV-257.
 
 ## End-to-End Flow
 
 The current production flow is:
 
 1. A physical NFC tag is read by the ACR122U attached to the Raspberry Pi reader node.
-2. The currently deployed reader agent acquires the NFCID1 through `nfc-list`, normalizes it to uppercase, applies same-card suppression/reset behavior, and publishes the existing outputs.
+2. The reader agent acquires the NFCID1 through `nfc-list`, normalizes it to uppercase, applies same-card suppression/reset behavior, and publishes the retained per-reader MQTT state.
 3. The retained per-reader MQTT state `assistive/nfc/<reader>/last_uid` is consumed by Home Assistant and represented by the configured reader sensor.
 4. AdvNFC Tag Listener filters invalid/recovery transitions and calls AdvNFC UID Gateway.
 5. AdvNFC resolves the governed tag mapping and invokes ASTV through the provider-owned Intent Invocation interface.
 
-After ASTV-249, step 2 is performed by the governed AdvNFC reader-agent source in this repository. Until then, the live Pi script remains runtime evidence rather than a repository-deployed artifact.
+ASTV-249 established the governed production reader-agent deployment on `pi-nfc-02`. ASTV-256 is not to be deployed to that production reader; its cleaned candidate will be validated on a separate test reader device before any later production promotion is considered.
 
 ## Raspberry Pi Reader Agent
 
 ### Physical Reader and UID Acquisition
 
-The reader-agent candidate runs on a Raspberry Pi with an attached ACS ACR122U. It uses the external `libnfc` tool `nfc-list` and extracts the NFCID1 using the captured AWK expression, producing an uppercase UID.
+The reader agent runs on a Raspberry Pi with an attached ACS ACR122U. It uses the external `libnfc` tool `nfc-list` and extracts the NFCID1 using the captured AWK expression, producing an uppercase UID.
 
 The reader identity defaults to `hostname -s`. The captured `pi-nfc-02` runtime uses:
 
@@ -39,19 +39,15 @@ The reader identity defaults to `hostname -s`. The captured `pi-nfc-02` runtime 
 - same-card suppression: do not re-send the same UID while continuously present;
 - reset rule: clear the remembered UID after eight consecutive empty polls.
 
-### Reader Outputs
+### Reader Output
 
-The two MQTT publications are governed by:
+The MQTT publication is governed by:
 
 `03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md`
 
-For each newly accepted UID, the reader agent preserves all three captured outputs:
+For each newly accepted UID, the ASTV-256 candidate publishes retained MQTT state on `assistive/nfc/<reader>/last_uid` containing the raw uppercase UID.
 
-1. Home Assistant webhook `assistive_card_scan` with JSON fields `uid` and `reader`;
-2. non-retained MQTT event `assistive/nfc/event` with JSON fields `uid`, `reader`, and `ts`;
-3. retained MQTT state `assistive/nfc/<reader>/last_uid` containing the raw uppercase UID.
-
-The Home Assistant AdvNFC path currently consumes the retained per-reader `last_uid` state. The webhook and generic MQTT event are retained during this migration because ASTV-247 is behavior-preserving; any later retirement requires separate evidence and governance.
+The Home Assistant AdvNFC path consumes this retained per-reader `last_uid` state. The migration-era Home Assistant webhook and generic MQTT event are removed from the cleanup candidate.
 
 ### Reader-Agent Deployment Boundary
 
@@ -148,7 +144,7 @@ AdvNFC does not reproduce or alter that precedence.
 |---|---|---|
 | ACR122U + Raspberry Pi platform | External hardware/platform | Provides physical NFC reads to the governed reader-agent software |
 | `libnfc` / `nfc-list` | External runtime dependency | Produces NFCID1 input consumed by the reader agent |
-| AdvNFC reader agent | AdvNFC-owned software | Acquires UID, applies captured suppression/reset behavior, and emits the existing webhook/MQTT outputs |
+| AdvNFC reader agent | AdvNFC-owned software | Acquires UID, applies captured suppression/reset behavior, and emits the retained per-reader MQTT state |
 | MQTT broker / network transport | External infrastructure | Carries reader-agent MQTT publications defined by `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` to Home Assistant |
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
 | `advnfc_tag_mapping.yaml` | Data source | Active AdvNFC Find Tag Record lookup after cutover |
@@ -168,7 +164,7 @@ A caller's `response_variable` name describes how that caller captures a result.
 
 ## Migration Invariant
 
-The Home Assistant carve-out preserves the former ASTV Phase 0 behavior. The reader-agent import additionally preserves the captured `pi-nfc-02` acquisition and publication behavior.
+The Home Assistant carve-out preserves the former ASTV Phase 0 behavior. ASTV-256 preserves the reader acquisition, retained MQTT state, UID normalization, suppression/reset behavior, and downstream AdvNFC invocation semantics while removing unused migration-era outputs.
 
 For the same valid reader state change and equivalent tag mapping, AdvNFC must produce the same ASTV Intent Invocation values as the current ASTV Phase 0 path:
 
@@ -189,4 +185,4 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 
 ASTV begins at the provider-owned Intent Invocation boundary.
 
-ASTV-247 establishes AdvNFC source authority for the Raspberry Pi reader-agent candidate under `04_Source/reader_agent/`. The currently deployed Pi script remains active until ASTV-249 performs controlled deployment and proving.
+ASTV-249 established the AdvNFC reader-agent production baseline. ASTV-256 changes remain a repository/Beta candidate until separately validated on a non-production test reader.
