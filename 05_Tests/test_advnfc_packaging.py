@@ -8,6 +8,11 @@ INIT = (PACKAGING / "advnfc-reader-agent-init").read_text()
 SERVICE = (ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agent.service").read_text()
 
 
+def test_package_is_architecture_independent():
+    assert 'ARCH="all"' in BUILD
+    assert "Architecture: $ARCH" in BUILD
+
+
 def test_package_declares_runtime_dependencies():
     for dep in ("adduser", "util-linux", "libnfc-bin", "mosquitto-clients", "usbutils", "udev", "systemd"):
         assert dep in BUILD
