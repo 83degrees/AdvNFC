@@ -20,7 +20,7 @@ empty_count=0
 echo "AdvNFC reader agent | profile=$ADVNFC_PROFILE | reader=$READER | MQTT=$MQTT_HOST:$MQTT_PORT | topic=$MQTT_TOPIC"
 
 while true; do
-  uid=$(nfc-list 2>/dev/null | awk '/UID \(NFCID1\):/{for(i=4;i<=NF;i++) printf toupper($i)}')
+  uid=$(nfc-list 2>/dev/null | awk '/UID \(NFCID1\):/{for(i=3;i<=NF;i++) printf toupper($i)}')
 
   if [[ -n "$uid" ]]; then
     empty_count=0
