@@ -22,8 +22,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: ${{ startsWith(github.ref, 'refs/tags/reader-agent-v') && 'write' || 'read' }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -70,8 +68,21 @@ jobs:
           path: dist/*.deb
           if-no-files-found: error
 
+  release:
+    if: startsWith(github.ref, 'refs/tags/reader-agent-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download built package
+        uses: actions/download-artifact@v4
+        with:
+          pattern: advnfc-reader-agent-*
+          merge-multiple: true
+          path: dist
+
       - name: Attach tagged package to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/reader-agent-v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
