@@ -1,9 +1,11 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGING = ROOT / "04_Source" / "reader_agent" / "packaging"
 BUILD = (PACKAGING / "build_deb.sh").read_text()
-CHECK = (PACKAGING / "advnfc-reader-agent-check").read_text()
+CHECK_PATH = PACKAGING / "advnfc-reader-agent-check"
+CHECK = CHECK_PATH.read_text()
 INIT = (PACKAGING / "advnfc-reader-agent-init").read_text()
 PROFILE = (PACKAGING / "advnfc-profile").read_text()
 SERVICE = (ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agent.service").read_text()
@@ -26,7 +28,7 @@ def test_package_installs_profile_tool_and_examples():
 
 
 def test_package_keeps_node_profiles_and_secrets_external():
-    assert "if [[ ! -e \"$target\" ]]" in INIT
+    assert 'if [[ ! -e "$target" ]]' in INIT
     assert "rm -rf /etc/advnfc" not in BUILD
     assert "/etc/advnfc/active-profile.yaml" not in BUILD
 
@@ -43,17 +45,58 @@ def test_package_creates_dedicated_runtime_account():
     assert "Group=advnfc" in SERVICE
 
 
-def test_package_installs_acr122u_access_rule():
+def test_package_installs_late_final_acr122u_access_rule():
+    assert "99-advnfc-acr122u.rules" in BUILD
+    assert "70-advnfc-acr122u.rules" not in BUILD
     assert 'ATTR{idVendor}=="072f"' in BUILD
     assert 'ATTR{idProduct}=="2200"' in BUILD
-    assert 'GROUP="advnfc"' in BUILD
+    assert 'MODE:="0660"' in BUILD
+    assert 'GROUP:="advnfc"' in BUILD
 
 
 def test_readiness_check_validates_profile_and_reader_stack():
     assert "advnfc-profile validate" in CHECK
     assert "lsusb -d 072f:2200" in CHECK
     assert "runuser -u advnfc -- timeout 8 nfc-list" in CHECK
+    assert "ACR122U USB device group is advnfc" in CHECK
     assert "mosquitto_pub" in CHECK
+
+
+def _reader_output_ok(output: str, rc: int = 0) -> bool:
+    command = (
+        f'source "{CHECK_PATH}"; '
+        'reader_output_ok "$1" "$2"'
+    )
+    result = subprocess.run(
+        ["bash", "-c", command, "bash", str(rc), output],
+        cwd=ROOT,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def test_readiness_accepts_clean_reader_open():
+    assert _reader_output_ok(
+        "nfc-list uses libnfc 1.8.0\n"
+        "NFC device: ACS / ACR122U PICC Interface opened\n"
+        "0 ISO14443A passive target(s) found:\n"
+    )
+
+
+def test_readiness_rejects_usb_permission_error_even_when_device_text_present():
+    assert not _reader_output_ok(
+        "nfc-list uses libnfc 1.8.0\n"
+        "NFC device: ACS / ACR122U PICC Interface opened\n"
+        "error   libnfc.driver.acr122_usb Unable to claim USB interface (Operation not permitted)\n"
+        "nfc-list: ERROR: Unable to open NFC device: acr122_usb:001:004\n"
+    )
+
+
+def test_readiness_rejects_busy_reader_error():
+    assert not _reader_output_ok(
+        "NFC device: ACS / ACR122U PICC Interface opened\n"
+        "error libnfc.driver.acr122_usb Unable to write to USB (Device or resource busy)\n"
+    )
 
 
 def test_profile_switch_has_validation_and_rollback():

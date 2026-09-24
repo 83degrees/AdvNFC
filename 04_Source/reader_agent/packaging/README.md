@@ -72,7 +72,7 @@ Removal stops/disables the service but preserves `/etc/advnfc/`. Node-local conf
 - dedicated `advnfc` service account;
 - active profile schema and referenced non-placeholder MQTT secret;
 - ACS ACR122U USB ID `072f:2200`;
-- successful `nfc-list` communication with a reader.
+- effective ACR122U device ownership by the `advnfc` group;\n- successful, error-free `nfc-list` communication with a reader as the `advnfc` service account.\n\nWhen the reader service is already active, the readiness tool briefly stops it to obtain exclusive reader access for the direct `nfc-list` probe, then restores the service to its prior active state.
 
 Service enabled/active state is reported separately so the check can be used before first start.
 
@@ -80,7 +80,7 @@ Service enabled/active state is reported separately so the check can be used bef
 
 No credentials are included in the package or release artefact. Reader identity continues to default to `hostname -s`; node-specific overrides remain in the external environment file.
 
-The package creates a dedicated `advnfc` system account and an ACR122U udev rule granting that group access to USB device `072f:2200`. This removes the previous dependency on a host-specific login account such as `pi01`.
+The package creates a dedicated `advnfc` system account and installs `99-advnfc-acr122u.rules` for USB device `072f:2200`. The late rule uses final udev assignments for the device mode and group so distro/libnfc rules such as `93-pn53x.rules` cannot subsequently move the ACR122U back to `plugdev`. This removes any runtime dependency on host-specific login or `plugdev` membership.
 
 ## Distribution evolution
 

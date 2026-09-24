@@ -38,8 +38,11 @@ git_sha=$GIT_SHA
 EOF
 chmod 0644 "$ROOT/opt/advnfc/reader_agent/VERSION"
 
-cat >"$ROOT/lib/udev/rules.d/70-advnfc-acr122u.rules" <<'EOF'
-SUBSYSTEM=="usb", ATTR{idVendor}=="072f", ATTR{idProduct}=="2200", MODE="0660", GROUP="advnfc"
+# Run after the distro/libnfc 93-pn53x.rules entry for the same ACR122U and
+# make the AdvNFC ownership assignment final so the service account does not
+# depend on membership of the host-specific plugdev group.
+cat >"$ROOT/lib/udev/rules.d/99-advnfc-acr122u.rules" <<'EOF'
+SUBSYSTEM=="usb", ATTR{idVendor}=="072f", ATTR{idProduct}=="2200", MODE:="0660", GROUP:="advnfc"
 EOF
 
 cat >"$ROOT/DEBIAN/control" <<EOF
