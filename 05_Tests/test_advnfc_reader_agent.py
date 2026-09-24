@@ -59,7 +59,9 @@ def test_legacy_webhook_configuration_is_removed():
 def test_systemd_uses_external_environment_and_governed_target_path():
     assert "EnvironmentFile=/etc/advnfc/reader-agent.env" in service
     assert "ExecStart=/opt/advnfc/reader_agent/advnfc_reader_agent.sh" in service
-    assert "User=pi01" in service
+    assert "User=advnfc" in service
+    assert "Group=advnfc" in service
+    assert "ConditionPathExists=/etc/advnfc/reader-agent.env" in service
     assert "Restart=always" in service
     assert "RestartSec=1s" in service
 
