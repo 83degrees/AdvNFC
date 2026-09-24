@@ -14,15 +14,20 @@ captured from `pi-nfc-02` under ASTV-246.
   - `libnfc-bin 1.8.0-2`
   - `libnfc6 1.8.0-2`
   - `mosquitto-clients 2.0.11-1.2+deb12u2`
-  - `curl 7.88.1-10+deb12u15`
 
-## Behavior preserved by the governed candidate
+`curl` was present in the captured legacy baseline solely for the Home Assistant
+webhook output. ASTV-256 removes that compatibility output from the candidate,
+so `curl` is no longer a reader-agent runtime dependency.
 
-For each newly accepted UID the agent still emits all three current outputs:
+## ASTV-256 cleanup candidate
 
-1. Home Assistant webhook `assistive_card_scan` with JSON `uid` and `reader`.
-2. Non-retained MQTT event on `assistive/nfc/event` with `uid`, `reader`, and `ts`.
-3. Retained raw UID on `assistive/nfc/<reader>/last_uid`.
+For each newly accepted UID the candidate emits one governed output:
+
+- retained raw UID on `assistive/nfc/<reader>/last_uid`.
+
+The historical Home Assistant webhook `assistive_card_scan` and generic
+non-retained MQTT event `assistive/nfc/event` are removed from this candidate.
+MQTT remains the reader transport.
 
 The reader identity remains `hostname -s` unless explicitly overridden.
 Polling remains 0.20 seconds, post-send debounce remains 0.80 seconds, and the
@@ -35,9 +40,10 @@ The governed AdvNFC candidate does **not** reproduce that secret. Deployment
 configuration is supplied through `/etc/advnfc/reader-agent.env`; a non-secret
 example is included in this directory.
 
-This is a security/configuration boundary only. MQTT topic names, payloads,
-reader identity semantics, webhook behavior, polling, debounce, and reset
-semantics are unchanged.
+ASTV-256 additionally removes migration-era compatibility outputs that are not
+part of the Home Assistant AdvNFC consumption path. The retained per-reader MQTT
+topic, payload, reader identity, polling, debounce, and reset semantics remain
+unchanged. The namespace rename is intentionally deferred to ASTV-257.
 
 ## Target deployment layout
 
@@ -45,5 +51,6 @@ semantics are unchanged.
 - Environment: `/etc/advnfc/reader-agent.env`
 - systemd unit: `advnfc-reader-agent.service`
 
-ASTV-247 establishes source authority only. Deployment and production cutover
-are governed separately by ASTV-249.
+ASTV-249 established the governed production reader-agent deployment. ASTV-256
+is a repository/Beta cleanup candidate only and must not be deployed to
+`pi-nfc-02`; runtime validation will use a separate test reader device.
