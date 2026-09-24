@@ -1,0 +1,298 @@
+#!/usr/bin/python3
+import argparse
+import os
+import re
+import shlex
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+ETC_ROOT = Path(os.environ.get("ADVNFC_ETC_ROOT", "/etc/advnfc"))
+PROFILES_DIR = ETC_ROOT / "profiles"
+SECRETS_DIR = ETC_ROOT / "secrets"
+ACTIVE_LINK = ETC_ROOT / "active-profile.yaml"
+SERVICE_NAME = os.environ.get("ADVNFC_SERVICE_NAME", "advnfc-reader-agent.service")
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+TOPIC_PATTERN = "advnfc/{reader}/last_uid"
+
+
+class ProfileError(RuntimeError):
+    pass
+
+
+def profile_path(name: str) -> Path:
+    if not NAME_RE.fullmatch(name):
+        raise ProfileError(f"invalid profile name: {name}")
+    return PROFILES_DIR / f"{name}.yaml"
+
+
+def load_yaml(path: Path) -> dict:
+    if not path.is_file():
+        raise ProfileError(f"profile does not exist: {path}")
+    try:
+        data = yaml.safe_load(path.read_text())
+    except Exception as exc:
+        raise ProfileError(f"invalid YAML in {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ProfileError(f"profile must be a YAML mapping: {path}")
+    return data
+
+
+def validate_profile(name: str, require_secret: bool = True) -> tuple[dict, Path | None]:
+    path = profile_path(name)
+    data = load_yaml(path)
+
+    if data.get("schema_version") != 1:
+        raise ProfileError("schema_version must be 1")
+    if data.get("name") != name:
+        raise ProfileError(f"profile name must match filename: expected {name}")
+
+    allowed_top = {"schema_version", "name", "mqtt", "reader"}
+    unknown_top = set(data) - allowed_top
+    if unknown_top:
+        raise ProfileError(f"unsupported top-level fields: {', '.join(sorted(unknown_top))}")
+
+    mqtt = data.get("mqtt")
+    if not isinstance(mqtt, dict):
+        raise ProfileError("mqtt must be a mapping")
+    allowed_mqtt = {"host", "port", "username", "credential_ref", "topic_pattern"}
+    unknown_mqtt = set(mqtt) - allowed_mqtt
+    if unknown_mqtt:
+        raise ProfileError(f"unsupported mqtt fields: {', '.join(sorted(unknown_mqtt))}")
+
+    for key in ("host", "username", "credential_ref", "topic_pattern"):
+        if not isinstance(mqtt.get(key), str) or not mqtt[key].strip():
+            raise ProfileError(f"mqtt.{key} must be a non-empty string")
+
+    port = mqtt.get("port")
+    if not isinstance(port, int) or not (1 <= port <= 65535):
+        raise ProfileError("mqtt.port must be an integer from 1 to 65535")
+
+    credential_ref = mqtt["credential_ref"]
+    if not NAME_RE.fullmatch(credential_ref):
+        raise ProfileError("mqtt.credential_ref contains invalid characters")
+
+    if mqtt["topic_pattern"] != TOPIC_PATTERN:
+        raise ProfileError(
+            f"mqtt.topic_pattern must match the governed interface: {TOPIC_PATTERN}"
+        )
+
+    reader = data.get("reader", {})
+    if reader is None:
+        reader = {}
+        data["reader"] = reader
+    if not isinstance(reader, dict):
+        raise ProfileError("reader must be a mapping")
+    unknown_reader = set(reader) - {"override"}
+    if unknown_reader:
+        raise ProfileError(f"unsupported reader fields: {', '.join(sorted(unknown_reader))}")
+    if "override" in reader:
+        override = reader["override"]
+        if not isinstance(override, str) or not override.strip():
+            raise ProfileError("reader.override must be a non-empty string when supplied")
+
+    secret_path = SECRETS_DIR / f"{credential_ref}.env"
+    if require_secret:
+        secret = load_secret(secret_path)
+        if not secret:
+            raise ProfileError(f"MQTT_PASS is empty in {secret_path}")
+    return data, secret_path
+
+
+def load_secret(path: Path) -> str:
+    if not path.is_file():
+        raise ProfileError(f"secret file does not exist: {path}")
+    value = None
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ProfileError(f"invalid secret line in {path}")
+        key, item = line.split("=", 1)
+        if key.strip() == "MQTT_PASS":
+            value = item.strip()
+    if value is None:
+        raise ProfileError(f"MQTT_PASS is missing from {path}")
+    if value == "REPLACE_WITH_DEPLOYMENT_SECRET":
+        raise ProfileError(f"MQTT_PASS placeholder has not been replaced in {path}")
+    return value
+
+
+def active_name() -> str:
+    if not ACTIVE_LINK.is_symlink():
+        raise ProfileError(f"active profile selector is missing: {ACTIVE_LINK}")
+    try:
+        target = ACTIVE_LINK.resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ProfileError(f"active profile selector is broken: {ACTIVE_LINK}") from exc
+    if target.parent != PROFILES_DIR.resolve():
+        raise ProfileError("active profile must point inside /etc/advnfc/profiles")
+    if target.suffix != ".yaml":
+        raise ProfileError("active profile target must be a .yaml file")
+    return target.stem
+
+
+def cmd_list(_args):
+    active = None
+    try:
+        active = active_name()
+    except ProfileError:
+        pass
+    if not PROFILES_DIR.is_dir():
+        return 0
+    for path in sorted(PROFILES_DIR.glob("*.yaml")):
+        marker = "*" if path.stem == active else " "
+        print(f"{marker} {path.stem}")
+    return 0
+
+
+def describe(name: str):
+    data, secret_path = validate_profile(name, require_secret=False)
+    mqtt = data["mqtt"]
+    reader = data.get("reader", {})
+    configured = "yes"
+    try:
+        load_secret(secret_path)
+    except ProfileError:
+        configured = "no"
+    print(f"Profile: {name}")
+    print(f"MQTT host: {mqtt['host']}")
+    print(f"MQTT port: {mqtt['port']}")
+    print(f"MQTT username: {mqtt['username']}")
+    print(f"Topic: {mqtt['topic_pattern']}")
+    print(f"Credential: {mqtt['credential_ref']}")
+    print(f"Credential configured: {configured}")
+    print(f"Reader override: {reader.get('override', '(hostname -s)')}")
+
+
+def cmd_status(_args):
+    name = active_name()
+    describe(name)
+    result = subprocess.run(
+        ["systemctl", "is-active", "--quiet", SERVICE_NAME], check=False
+    )
+    print(f"Service: {'active' if result.returncode == 0 else 'inactive'}")
+    return 0
+
+
+def cmd_validate(args):
+    name = args.name or active_name()
+    validate_profile(name, require_secret=True)
+    print(f"Valid profile: {name}")
+    return 0
+
+
+def atomic_select(name: str):
+    target = profile_path(name)
+    relative_target = Path("profiles") / target.name
+    tmp = ETC_ROOT / ".active-profile.yaml.tmp"
+    try:
+        tmp.unlink()
+    except FileNotFoundError:
+        pass
+    tmp.symlink_to(relative_target)
+    os.replace(tmp, ACTIVE_LINK)
+
+
+def service(args, check=False):
+    return subprocess.run(["systemctl", *args, SERVICE_NAME], check=check).returncode
+
+
+def cmd_switch(args):
+    if os.geteuid() != 0 and os.environ.get("ADVNFC_ALLOW_NON_ROOT") != "1":
+        raise ProfileError("switch requires root; use sudo advnfc-profile switch <name>")
+
+    name = args.name
+    validate_profile(name, require_secret=True)
+
+    previous = None
+    try:
+        previous = active_name()
+    except ProfileError:
+        pass
+
+    if previous == name:
+        print(f"Profile already active: {name}")
+        return 0
+
+    service(["stop"], check=False)
+    atomic_select(name)
+
+    try:
+        service(["start"], check=True)
+        time.sleep(1)
+        if service(["is-active", "--quiet"], check=False) != 0:
+            raise ProfileError(f"service did not become active with profile {name}")
+    except Exception as exc:
+        print(f"Activation failed for {name}; rolling back.", file=sys.stderr)
+        service(["stop"], check=False)
+        if previous is not None:
+            atomic_select(previous)
+            service(["start"], check=False)
+            print(f"Restored previous profile: {previous}", file=sys.stderr)
+        else:
+            try:
+                ACTIVE_LINK.unlink()
+            except FileNotFoundError:
+                pass
+            print("No previous profile existed; selector removed.", file=sys.stderr)
+        raise ProfileError(str(exc)) from exc
+
+    print(f"Active profile: {name}")
+    return 0
+
+
+def cmd_runtime_shell(_args):
+    name = active_name()
+    data, secret_path = validate_profile(name, require_secret=True)
+    mqtt = data["mqtt"]
+    reader = data.get("reader", {})
+    values = {
+        "ADVNFC_PROFILE": name,
+        "MQTT_HOST": mqtt["host"],
+        "MQTT_PORT": str(mqtt["port"]),
+        "MQTT_USER": mqtt["username"],
+        "MQTT_PASS": load_secret(secret_path),
+        "MQTT_TOPIC_PATTERN": mqtt["topic_pattern"],
+        "READER_OVERRIDE": reader.get("override", ""),
+    }
+    for key, value in values.items():
+        print(f"export {key}={shlex.quote(value)}")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="advnfc-profile")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_list = sub.add_parser("list", help="list available profiles")
+    p_list.set_defaults(func=cmd_list)
+
+    p_status = sub.add_parser("status", help="show active profile without secrets")
+    p_status.set_defaults(func=cmd_status)
+
+    p_validate = sub.add_parser("validate", help="validate a profile and its secret")
+    p_validate.add_argument("name", nargs="?")
+    p_validate.set_defaults(func=cmd_validate)
+
+    p_switch = sub.add_parser("switch", help="validate and activate a profile safely")
+    p_switch.add_argument("name")
+    p_switch.set_defaults(func=cmd_switch)
+
+    p_runtime = sub.add_parser("runtime-shell", help=argparse.SUPPRESS)
+    p_runtime.set_defaults(func=cmd_runtime_shell)
+
+    args = parser.parse_args()
+    try:
+        return args.func(args)
+    except ProfileError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
