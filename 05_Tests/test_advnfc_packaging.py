@@ -2,6 +2,8 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+READER_AGENT_PATH = ROOT / "04_Source" / "reader_agent" / "advnfc_reader_agent.sh"
+READER_AGENT = READER_AGENT_PATH.read_text()
 PACKAGING = ROOT / "04_Source" / "reader_agent" / "packaging"
 BUILD = (PACKAGING / "build_deb.sh").read_text()
 CHECK_PATH = PACKAGING / "advnfc-reader-agent-check"
@@ -116,3 +118,16 @@ def test_profile_switch_has_validation_and_rollback():
 
 def test_fresh_install_does_not_start_unconfigured_service():
     assert "Fresh installs do not start the service" in BUILD
+
+
+def test_reader_agent_preserves_complete_nfcid1():
+    assert 'for(i=3;i<=NF;i++) printf toupper($i)' in READER_AGENT
+    sample = "       UID (NFCID1): 04  fd  26  37  c8  2a  81  \n"
+    result = subprocess.run(
+        ["awk", r"/UID \(NFCID1\):/{for(i=3;i<=NF;i++) printf toupper($i)}"],
+        input=sample,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert result.stdout == "04FD2637C82A81"
