@@ -7,6 +7,7 @@ warn() { printf 'WARN %s\n' "$*"; }
 bad()  { printf 'FAIL %s\n' "$*"; fail=1; }
 
 VERSION_FILE=/opt/advnfc/reader_agent/VERSION
+SERVICE=advnfc-reader-agent.service
 
 echo "AdvNFC reader-agent readiness check"
 
@@ -16,7 +17,7 @@ else
   bad "version metadata missing: $VERSION_FILE"
 fi
 
-for cmd in nfc-list mosquitto_pub lsusb timeout python3 advnfc-profile; do
+for cmd in nfc-list mosquitto_pub lsusb timeout python3 advnfc-profile stat; do
   if command -v "$cmd" >/dev/null 2>&1; then
     ok "$cmd available"
   else
@@ -42,28 +43,61 @@ else
   bad "active profile missing; run sudo advnfc-profile switch <profile>"
 fi
 
-if lsusb -d 072f:2200 >/dev/null 2>&1; then
+usb_line="$(lsusb -d 072f:2200 2>/dev/null | head -n 1)"
+if [[ -n "$usb_line" ]]; then
   ok "ACR122U USB device 072f:2200 detected"
+
+  usb_bus="$(awk '{print $2}' <<<"$usb_line")"
+  usb_dev="$(awk '{gsub(":", "", $4); print $4}' <<<"$usb_line")"
+  usb_node="/dev/bus/usb/$usb_bus/$usb_dev"
+
+  if [[ -e "$usb_node" ]]; then
+    usb_group="$(stat -c %G "$usb_node" 2>/dev/null || true)"
+    if [[ "$usb_group" == "advnfc" ]]; then
+      ok "ACR122U USB device group is advnfc"
+    else
+      bad "ACR122U USB device group is $usb_group; expected advnfc ($usb_node)"
+    fi
+  else
+    bad "ACR122U USB device node missing: $usb_node"
+  fi
 else
   bad "ACR122U USB device 072f:2200 not detected"
 fi
 
+service_was_active=0
+if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
+  service_was_active=1
+  if ! systemctl stop "$SERVICE"; then
+    bad "could not stop $SERVICE for exclusive reader check"
+  fi
+fi
+
 nfc_output="$(runuser -u advnfc -- timeout 8 nfc-list 2>&1)"
 nfc_rc=$?
-if [[ $nfc_rc -eq 0 ]] && grep -Eqi 'NFC device|ACR122|ACS' <<<"$nfc_output"; then
+
+if (( service_was_active )); then
+  if ! systemctl start "$SERVICE"; then
+    bad "could not restart $SERVICE after reader check"
+  fi
+fi
+
+if [[ $nfc_rc -eq 0 ]] \
+  && grep -Eqi 'NFC device:.*opened' <<<"$nfc_output" \
+  && ! grep -Eqi '(^|[[:space:]])error([[:space:]]|$)|Unable to (claim|open|write|release).*' <<<"$nfc_output"; then
   ok "nfc-list can communicate with an NFC reader as service account advnfc"
 else
   bad "nfc-list reader check failed as service account advnfc"
   printf '%s\n' "$nfc_output" | tail -n 8
 fi
 
-if systemctl is-enabled --quiet advnfc-reader-agent.service 2>/dev/null; then
+if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
   ok "service enabled"
 else
   warn "service not enabled"
 fi
 
-if systemctl is-active --quiet advnfc-reader-agent.service 2>/dev/null; then
+if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
   ok "service active"
 else
   warn "service not active"
