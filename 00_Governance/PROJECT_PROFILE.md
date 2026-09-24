@@ -76,7 +76,7 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 | Contract | Status/version | Provider/owner | Authoritative location | Local use |
 | --- | --- | --- | --- | --- |
-| `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | current v1.0.0 candidate | AdvNFC | `03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | Governs reader-agent MQTT publications consumed by downstream infrastructure, including the Home Assistant reader-sensor path. |
+| `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | candidate v3.0.0 | AdvNFC | `03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md` | Governs reader-agent MQTT publications consumed by downstream infrastructure, including the Home Assistant reader-sensor path. |
 
 ## Contracts consumed
 
@@ -115,7 +115,7 @@ These names are the active AdvNFC Home Assistant identities following the accept
 ## Production and evidence route
 
 - Production route: the Home Assistant NFC-entry implementation is active in `ha-starburst` and invokes ASTV through the governed Intent Invocation interface. The governed Raspberry Pi reader agent is deployed on `pi-nfc-02` as `advnfc-reader-agent.service`.
-- Current production fact: AdvNFC owns and runs both the governed reader-agent software and the Home Assistant NFC-entry path; ASTV begins at the Intent Invocation boundary. The legacy `assistive-card-listener.service` is retired and non-authoritative.
+- Current production fact: AdvNFC owns and runs both the governed reader-agent software and the Home Assistant NFC-entry path; ASTV begins at the Intent Invocation boundary. The legacy `assistive-card-listener.service` is retired and non-authoritative. During ASTV-257 coexistence, `pi-nfc-02` remains on its unchanged legacy `assistive/nfc/pi-nfc-02/last_uid` topic while replacement/test readers use the candidate `advnfc/<reader>/last_uid` namespace.
 - Evidence route: future AdvNFC production evidence must follow the centrally governed Production Evidence Standard.
 - Secrets and mutable-state boundary: credentials, secrets, mutable Home Assistant state, and production snapshots remain outside this repository.
 - Validation evidence route: Linear records governed work and validation; Git/GitHub records exact candidate and accepted repository states.
