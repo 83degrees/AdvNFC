@@ -46,7 +46,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: bash, coreutils, libnfc-bin, mosquitto-clients, usbutils
+Depends: bash, coreutils, adduser, util-linux, libnfc-bin, mosquitto-clients, usbutils, udev, systemd
 Maintainer: AdvNFC
 Description: Governed AdvNFC Raspberry Pi NFC reader agent
  Installs the AdvNFC reader agent, systemd unit, ACR122U access rule,
