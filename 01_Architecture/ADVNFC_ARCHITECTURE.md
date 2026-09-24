@@ -10,9 +10,9 @@ The governed diagram at `Diagrams/ADVNFC_ARCHITECTURE.drawio` represents this se
 
 The Home Assistant portion of this architecture is the deployed AdvNFC runtime established by the completed ASTV Phase 0 carve-out. ASTV now begins at the provider-owned Intent Invocation boundary.
 
-ASTV-247 extends AdvNFC source authority upstream to the Raspberry Pi reader-agent software captured from `pi-nfc-02`. That reader-agent source is a governed deployment candidate only until ASTV-249 performs and proves the production deployment.
+ASTV-247 extended AdvNFC source authority upstream to the Raspberry Pi reader-agent software captured from `pi-nfc-02`. ASTV-249 subsequently deployed and proved that governed reader-agent baseline in production as `advnfc-reader-agent.service`.
 
-ASTV-249 deployed the governed reader-agent baseline. ASTV-256 defines a cleanup candidate that preserves UID acquisition, same-card suppression/reset behavior, the retained per-reader `last_uid` MQTT output, topic name, payload, polling, and debounce semantics while removing the migration-era Home Assistant webhook and generic MQTT event outputs. MQTT remains the reader transport. The namespace rename remains outside this change and is governed by ASTV-257.
+ASTV-249 deployed the governed reader-agent baseline as `advnfc-reader-agent.service` on `pi-nfc-02`; the legacy `assistive-card-listener.service` is retired and non-authoritative. ASTV-256 defines a cleanup candidate that preserves UID acquisition, same-card suppression/reset behavior, the retained per-reader `last_uid` MQTT output, topic name, payload, polling, and debounce semantics while removing the migration-era Home Assistant webhook and generic MQTT event outputs. MQTT remains the reader transport. The namespace rename remains outside this change and is governed by ASTV-257.
 
 ## End-to-End Flow
 
