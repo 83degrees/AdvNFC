@@ -126,7 +126,7 @@ ASTV-242 establishes the candidate AdvNFC runtime source baseline under:
 
 - `04_Source/config/packages/advnfc/advnfc_automations.yaml`
 - `04_Source/config/packages/advnfc/advnfc_scripts.yaml`
-- `04_Source/config/assistive/advnfc_tag_mapping.yaml`
+- `04_Source/config/AdvNFC/advnfc_tag_mapping.yaml`
 
 These files are the accepted AdvNFC Home Assistant source baseline following production cutover.
 
