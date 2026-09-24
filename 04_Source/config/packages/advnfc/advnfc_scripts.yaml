@@ -21,7 +21,7 @@ script:
           text:
     sequence:
     - variables:
-        tag_mapping: !include ../../assistive/advnfc_tag_mapping.yaml
+        tag_mapping: !include ../../AdvNFC/advnfc_tag_mapping.yaml
         lookup_uid: '{{ uid | string | trim | upper }}'
     - variables:
         tag_record_response: '{{ tag_mapping.get(lookup_uid, {}) }}'
