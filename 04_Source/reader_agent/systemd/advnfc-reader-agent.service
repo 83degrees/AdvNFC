@@ -4,7 +4,8 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=pi01
+User=advnfc
+Group=advnfc
 EnvironmentFile=/etc/advnfc/reader-agent.env
 ExecStart=/opt/advnfc/reader_agent/advnfc_reader_agent.sh
 Restart=always
