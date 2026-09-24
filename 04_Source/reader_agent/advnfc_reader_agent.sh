@@ -1,16 +1,15 @@
 #!/bin/bash
+set -euo pipefail
 # AdvNFC reader agent
 #
-# Governed Raspberry Pi NFC reader-agent runtime.
-# Deployment-specific configuration is supplied by systemd
-# through /etc/advnfc/reader-agent.env. Secrets must not be stored here.
+# Environment-specific, non-secret configuration comes from the selected
+# AdvNFC profile. The referenced MQTT password remains in a protected
+# node-local secret file.
 
-MQTT_HOST="${MQTT_HOST:-ha-starburst.little-dory.ts.net}"
-MQTT_PORT="${MQTT_PORT:-1883}"
-MQTT_USER="${MQTT_USER:-ha_mqtt}"
-: "${MQTT_PASS:?MQTT_PASS must be supplied through the deployment environment}"
+eval "$(/usr/local/sbin/advnfc-profile runtime-shell)"
 
-READER="${READER:-$(hostname -s)}"
+READER="${READER_OVERRIDE:-$(hostname -s)}"
+MQTT_TOPIC="${MQTT_TOPIC_PATTERN//\{reader\}/$READER}"
 POLL_S="${POLL_S:-0.20}"
 DEBOUNCE_S="${DEBOUNCE_S:-0.80}"
 EMPTY_RESET_LOOPS="${EMPTY_RESET_LOOPS:-8}"
@@ -18,7 +17,7 @@ EMPTY_RESET_LOOPS="${EMPTY_RESET_LOOPS:-8}"
 prev=""
 empty_count=0
 
-echo "AdvNFC reader agent | reader=$READER | MQTT=$MQTT_HOST:$MQTT_PORT"
+echo "AdvNFC reader agent | profile=$ADVNFC_PROFILE | reader=$READER | MQTT=$MQTT_HOST:$MQTT_PORT | topic=$MQTT_TOPIC"
 
 while true; do
   uid=$(nfc-list 2>/dev/null | awk '/UID \(NFCID1\):/{for(i=4;i<=NF;i++) printf toupper($i)}')
@@ -30,7 +29,7 @@ while true; do
 
       /usr/bin/mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" \
         -u "$MQTT_USER" -P "$MQTT_PASS" \
-        -t "advnfc/$READER/last_uid" -r \
+        -t "$MQTT_TOPIC" -r \
         -m "$uid"
 
       prev="$uid"
