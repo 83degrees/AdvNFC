@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "04_Source" / "reader_agent" / "advnfc_reader_agent.sh"
@@ -30,24 +29,31 @@ def test_captured_timing_and_reset_defaults_are_preserved():
     assert 'prev=""' in script
 
 
-def test_all_three_current_outputs_are_preserved():
-    assert 'WEBHOOK_ID="${WEBHOOK_ID:-assistive_card_scan}"' in script
-    assert '-t "assistive/nfc/event"' in script
+def test_retained_last_uid_is_the_only_reader_output():
+    assert script.count("/usr/bin/mosquitto_pub") == 1
     assert '-t "assistive/nfc/$READER/last_uid" -r' in script
+    assert "assistive/nfc/event" not in script
+    assert "WEBHOOK_ID" not in script
+    assert "WEBHOOK_URL" not in script
+    assert "curl " not in script
 
 
-def test_payload_shapes_are_preserved():
-    assert '-d "{\\\"uid\\\":\\\"$uid\\\",\\\"reader\\\":\\\"$READER\\\"}"' in script
-    assert '-m "{\\\"uid\\\":\\\"$uid\\\",\\\"reader\\\":\\\"$READER\\\",\\\"ts\\\":\\\"$ts\\\"}"' in script
-    assert re.search(r'-t "assistive/nfc/\$READER/last_uid" -r\s+\\\n\s+-m "\$uid"', script)
+def test_retained_payload_is_raw_uid():
+    assert '-m "$uid"' in script
 
 
 def test_mqtt_password_is_not_embedded_in_source():
     assert "83degrees" not in script
     assert "83degrees" not in service
     assert "83degrees" not in env_example
-    assert 'MQTT_PASS must be supplied through the deployment environment' in script
+    assert "MQTT_PASS must be supplied through the deployment environment" in script
     assert "MQTT_PASS=REPLACE_WITH_DEPLOYMENT_SECRET" in env_example
+
+
+def test_legacy_webhook_configuration_is_removed():
+    assert "HA_BASE_URL" not in env_example
+    assert "WEBHOOK_ID" not in env_example
+    assert "webhook" not in service.lower()
 
 
 def test_systemd_uses_external_environment_and_governed_target_path():
