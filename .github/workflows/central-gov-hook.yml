@@ -1,7 +1,7 @@
-# **Version:** v1.0.0
+# **Version:** v1.1.0
 # **Status:** Approved
-# **Approval tag:** `central-gov-hook-v1.0.0`
-# **Approval date:** 2026-09-11
+# **Approval tag:** `central-gov-hook-v1.1.0`
+# **Approval date:** 2026-09-27
 
 name: Central Governance
 
@@ -13,4 +13,38 @@ permissions:
 
 jobs:
   central-governance:
-    uses: 83degrees/governance/.github/workflows/central-gov-wf.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact pull-request candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Determine persistent beta availability
+        id: beta
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads origin refs/heads/beta >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture changed paths
+        shell: bash
+        run: |
+          git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            > "$RUNNER_TEMP/central-gov-changed-files.txt"
+
+      - name: Run central governance checks
+        shell: bash
+        run: |
+          python "00_Governance/01_Central/03_Tooling/central_gov_checks.py" \
+            --repository "${{ github.repository }}" \
+            --head "${{ github.head_ref }}" \
+            --base "${{ github.base_ref }}" \
+            --beta-exists "${{ steps.beta.outputs.exists }}" \
+            --changed-files-file "$RUNNER_TEMP/central-gov-changed-files.txt"

@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.1.0
+**Governance version:** 11.2.0
 **Status:** Approved
-**Approval tag:** `governance-v11.1.0`
-**Approval date:** 2026-09-11
+**Approval tag:** `governance-v11.2.0`
+**Approval date:** 2026-09-27
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -452,7 +452,7 @@ Product-local work must not create, edit, rename, move or delete anything within
 
 The central Governance repository remains the source of truth for all centrally projected content. The canonical source for product-root `AGENTS.md` is `/Templates/product_root_agents.template.md`. The canonical source for `.github/workflows/central-gov-hook.yml` is `/Templates/central_gov_hook.yml`.
 
-The product hook is deliberately thin. It triggers on every pull request and calls the single central reusable workflow at `83degrees/governance/.github/workflows/central-gov-wf.yml@main`. The reusable workflow and its central check implementation at `/tooling/central_gov_checks.py` remain in the Governance repository and are not projected into product repositories. The central workflow is check-only/read-only; product-specific parameters are not supplied by the hook. Applicable checks are inferred centrally from deterministic governed repository structure.
+The product hook is deliberately thin. It triggers on every pull request and runs the centrally managed read-only routing checker projected at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. The authoritative source remains `/tooling/central_gov_checks.py` in the Governance repository; distribution projects the exact approved checker into each governed product so the control works for both public and private repositories without requiring runtime access to the private Governance repository. Product-specific parameters are not embedded in the hook. Applicable checks are inferred centrally from deterministic governed repository structure.
 
 These exact out-of-subtree exceptions do not authorise central ownership of other product-root or `.github/**` content.
 
@@ -1126,7 +1126,7 @@ For normal `WF-01` runtime-changing work, the reviewed issue PR targets persiste
 
 Before substantive review begins at G2, the actual PR base must be independently verified against the workflow-to-Git route recorded for the issue. A PR that does not target the branch required by its selected workflow fails G2 and must not be treated as review-ready.
 
-Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook. On every pull request the hook calls the single reusable Governance workflow at `83degrees/governance/.github/workflows/central-gov-wf.yml@main`; the product repository does not contain a copy of the workflow implementation or check logic. The central workflow invokes the central checks in `/tooling/central_gov_checks.py` using read-only access. For the first mechanical routing control, a PR that changes any path under canonical `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check.
+Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the first mechanical routing control, a PR that changes any path under canonical `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check.
 
 This path-based check is an enforcement mechanism for the standard repository model, not a substitute for correct semantic classification. Runtime-affecting implementation placed outside `04_Source/**` remains a repository-model violation and must not be treated as non-runtime merely because the routing check did not classify its path as runtime implementation.
 
@@ -2007,7 +2007,7 @@ The central Governance repository owns the centrally managed product projection 
 
 The authoritative source for product-root `AGENTS.md` is the inert `/Templates/product_root_agents.template.md`; it becomes an active loader only when projected to the product root.
 
-The authoritative source for `.github/workflows/central-gov-hook.yml` is `/Templates/central_gov_hook.yml`. The projected file is only the generic product-side hook. The reusable workflow at `/.github/workflows/central-gov-wf.yml` and central check implementation at `/tooling/central_gov_checks.py` remain solely in the central Governance repository.
+The authoritative source for `.github/workflows/central-gov-hook.yml` is `/Templates/central_gov_hook.yml`. The authoritative source for the projected routing checker is `/tooling/central_gov_checks.py`, distributed unchanged to `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. The hook and checker are both centrally owned; their product copies are execution surfaces, not product-owned implementations.
 
 Product repositories must not locally modify centrally projected Governance content. Distribution of approved central content is deployment, not a transfer of authority to the product repository.
 
@@ -2751,11 +2751,13 @@ The standard structure is:
 │   │   ├── ARCHITECTURE_DIAGRAM_STANDARD.md
 │   │   ├── DDR_STANDARD.md
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
-│   └── 02_Templates/
-│       ├── PROJECT_PROFILE.template.md
-│       ├── DIAGRAM_CONVENTION_LEARNING.md
-│       ├── DDR.template.md
-│       └── AUDIT_REVIEW_LOG.template.md
+│   ├── 02_Templates/
+│   │   ├── PROJECT_PROFILE.template.md
+│   │   ├── DIAGRAM_CONVENTION_LEARNING.md
+│   │   ├── DDR.template.md
+│   │   └── AUDIT_REVIEW_LOG.template.md
+│   └── 03_Tooling/
+│       └── central_gov_checks.py
 ├── PROJECT_PROFILE.md
 └── AAR_REGISTER.md
 ```
