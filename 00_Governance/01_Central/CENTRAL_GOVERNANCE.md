@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.2.0
+**Governance version:** 11.3.0
 **Status:** Approved
-**Approval tag:** `governance-v11.2.0`
-**Approval date:** 2026-09-27
+**Approval tag:** `governance-v11.3.0`
+**Approval date:** 2026-10-03
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -660,6 +660,16 @@ Where current governed work has an applicable `PROJECT_PROFILE.md`, the default 
 Use a different Linear team only when the user explicitly specifies one.
 
 The Project Profile supplies the project-specific team value only. It must not restate or locally redefine this team-selection rule.
+
+#### 4.14 Linear Assignee Selection
+
+When an agent creates a Linear issue on behalf of the user, the default assignee is the authenticated Linear user.
+
+Where the Linear integration supports the portable alias `assignee: "me"`, use that alias rather than hard-coding a user UUID.
+
+Use a different assignee only when the user explicitly specifies one or the governed workflow explicitly requires another assignee or an unassigned issue.
+
+This rule governs issue ownership only. It does not alter workflow state, delegation, change-class selection, project or team selection, or execution authority.
 
 ---
 
