@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# **Version:** v1.0.0
+# **Version:** v1.1.0
 # **Status:** Approved
-# **Approval tag:** `central-gov-checks-v1.0.0`
-# **Approval date:** 2026-09-27
+# **Approval tag:** `central-gov-checks-v1.1.0`
+# **Approval date:** 2026-10-03
 
 """Central Governance pull-request checks."""
 
@@ -14,6 +14,8 @@ RUNTIME_ROOT = "04_Source"
 REQUIRED_RUNTIME_BASE = "beta"
 PROMOTION_HEAD = "beta"
 PROMOTION_BASE = "main"
+HOME_ASSISTANT_REPOSITORY_MANIFEST = "repository.yaml"
+HOME_ASSISTANT_CONFIG_SUFFIXES = {".json", ".yaml", ".yml"}
 
 
 def is_runtime_path(path):
@@ -34,6 +36,43 @@ def evaluate_wf01_route(head_branch, base_branch, changed_files, beta_exists):
     return True, "Runtime change targets the required persistent beta branch."
 
 
+def find_home_assistant_app_configs(repository_root):
+    repository_root = pathlib.Path(repository_root)
+    configs = []
+    for candidate in repository_root.rglob("config.*"):
+        if not candidate.is_file():
+            continue
+        relative = candidate.relative_to(repository_root)
+        if candidate.suffix not in HOME_ASSISTANT_CONFIG_SUFFIXES:
+            continue
+        if any(part.startswith(".") or part == "rootfs" for part in relative.parts):
+            continue
+        configs.append(relative.as_posix())
+    return sorted(configs)
+
+
+def evaluate_home_assistant_app_layout(repository_root):
+    repository_root = pathlib.Path(repository_root)
+    if not (repository_root / HOME_ASSISTANT_REPOSITORY_MANIFEST).is_file():
+        return True, "No root repository.yaml; Home Assistant App layout check is not applicable."
+
+    configs = find_home_assistant_app_configs(repository_root)
+    if not configs:
+        return False, "Root repository.yaml exists but no recursively discoverable App config was found."
+
+    noncanonical = [path for path in configs if not is_runtime_path(path)]
+    if noncanonical:
+        return False, (
+            "Root repository.yaml exists but App config must be under '04_Source/**': "
+            + ", ".join(noncanonical)
+        )
+
+    return True, (
+        "Root repository.yaml is metadata and all recursively discoverable App config is under "
+        "'04_Source/**'."
+    )
+
+
 def parse_bool(value):
     normalized = value.strip().lower()
     if normalized in {"true", "1", "yes"}:
@@ -50,6 +89,7 @@ def main(argv=None):
     parser.add_argument("--base", required=True)
     parser.add_argument("--beta-exists", required=True, type=parse_bool)
     parser.add_argument("--changed-files-file", required=True)
+    parser.add_argument("--repository-root", default=".")
     args = parser.parse_args(argv)
 
     changed_files = [
@@ -64,7 +104,12 @@ def main(argv=None):
         args.beta_exists,
     )
     print(f"{'PASS' if allowed else 'FAIL'}: {args.repository}: WF-01 routing: {reason}")
-    return 0 if allowed else 1
+    layout_allowed, layout_reason = evaluate_home_assistant_app_layout(args.repository_root)
+    print(
+        f"{'PASS' if layout_allowed else 'FAIL'}: {args.repository}: "
+        f"Home Assistant App layout: {layout_reason}"
+    )
+    return 0 if allowed and layout_allowed else 1
 
 
 if __name__ == "__main__":
