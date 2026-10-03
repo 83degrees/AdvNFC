@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.4.0
+**Governance version:** 11.5.0
 **Status:** Approved
-**Approval tag:** `governance-v11.4.0`
+**Approval tag:** `governance-v11.5.0`
 **Approval date:** 2026-10-03
 
 **Authority of appendices:**  
@@ -148,6 +148,7 @@ Its authoritative central artefacts include:
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
 - `/Templates/PROJECT_PROFILE.template.md`
+- `/Templates/HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md`
 - `/Templates/DIAGRAM_CONVENTION_LEARNING.md`
 - `/Templates/DDR.template.md`
 - `/Templates/AUDIT_REVIEW_LOG.template.md`
@@ -473,6 +474,8 @@ Repository location does not change the substantive authority relationships defi
 New recurring top-level artefact classes are raised through the AAR/governance-improvement process rather than introduced independently by individual products.
 
 The canonical top-level structure and detailed placement rules remain authoritative through Appendix E.
+
+A product may place a platform-required repository manifest at the product root only where this Governance book explicitly recognises that exact manifest as an exception. The manifest remains metadata; it must not become a second location for authoritative runtime implementation.
 
 #### 3.3 Secrets and Credentials
 
@@ -1178,7 +1181,7 @@ For normal `WF-01` runtime-changing work, the reviewed issue PR targets persiste
 
 Before substantive review begins at G2, the actual PR base must be independently verified against the workflow-to-Git route recorded for the issue. A PR that does not target the branch required by its selected workflow fails G2 and must not be treated as review-ready.
 
-Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the first mechanical routing control, a PR that changes any path under canonical `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check.
+Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the first mechanical routing control, a PR that changes any path under canonical `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check. Where product-root `repository.yaml` identifies a Home Assistant App repository, the checker also confirms that recursively discoverable App configuration exists only beneath `04_Source/**` and that no duplicate root-level App package is introduced.
 
 This path-based check is an enforcement mechanism for the standard repository model, not a substitute for correct semantic classification. Runtime-affecting implementation placed outside `04_Source/**` remains a repository-model violation and must not be treated as non-runtime merely because the routing check did not classify its path as runtime implementation.
 
@@ -1749,6 +1752,94 @@ A Beta candidate is resolved only when either:
 After resolution, persistent `beta` must be deterministically realigned with accepted `main` before the next runtime candidate is integrated.
 
 A product-specific concurrency exception requires explicit governed authority and must preserve unambiguous candidate identity, environment state, rollback and validation evidence.
+
+#### 18.8 Home Assistant App Custom-Repository Deployment
+
+This section applies where a governed Home Assistant App is installed or updated through the Home Assistant App store from a Git custom repository.
+
+The external platform basis for this model is the Home Assistant developer documentation for [App repositories](https://developers.home-assistant.io/docs/apps/repository/) and [App configuration](https://developers.home-assistant.io/docs/apps/configuration/), together with Supervisor source commit `bdcba61fc7c1500e96d2e319d07546f7b896e067`: `supervisor/validate.py` defines the optional `#branch` repository syntax, `supervisor/store/git.py` passes the parsed branch to the clone operation, and `supervisor/store/data.py` recursively discovers App configuration. These sources describe platform behaviour; this Governance section defines the controls for using it.
+
+Home Assistant requires a repository configuration file named `repository.yaml` at the repository root. Supervisor recursively discovers App `config.yaml` files in the repository. A governed product therefore keeps the authoritative App package under `04_Source/<app>/**` and may place only the required `repository.yaml` metadata at the product root. Root `repository.yaml` is an approved platform-manifest exception under Section 3.2 and Appendix E; it does not authorise root-level runtime implementation or a duplicate App package.
+
+The Home Assistant repository source is part of deployment identity. A branch-qualified source of the form:
+
+`https://github.com/<owner>/<repository>#<branch>`
+
+selects that branch for Supervisor's Git clone/update route. Governed Beta normally uses `#beta` and remains associated only with the intended Beta environment. Stable installation/update uses the accepted stable branch or release state selected by the product's approved deployment design. Changing the repository source, branch qualification or App identity is a deployment change and must not be treated as a harmless UI edit.
+
+Use of a custom repository does not bypass issue workflow, human review, validation, Beta-entry authority, deployment authority, stable-promotion authority or exact-candidate evidence. For `WF-01`, the selected repository source, branch, App version and Git candidate identity must together identify the exact accepted candidate.
+
+##### 18.8.1 Private Repository Constraint and Publication Meaning
+
+Where the Home Assistant instance intentionally stores no GitHub repository credential, Supervisor can clone or update a private GitHub repository only while anonymous access is possible. If temporary public visibility is selected to enable that access, the visibility change is a security-sensitive external publication event.
+
+Returning the repository to private visibility does not retract content already fetched, cached, cloned, mirrored or observed. Authorisation of a temporary-public window therefore includes explicit acknowledgement that third-party copies may persist permanently. The operation must never be described as fully reversible.
+
+Temporary public visibility is a narrow deployment mechanism, not a release shortcut or standing publication policy. Each install or update that requires anonymous access requires a new authorised public window unless a separately approved product mechanism removes that requirement.
+
+##### 18.8.2 Public-Window Preconditions
+
+Before a private product repository is made public, the operator must establish and record against the governing Linear issue:
+
+- explicit user authorisation for the exact repository, candidate, target environment and deployment purpose;
+- the planned start and end conditions of the public window;
+- review of the complete current tree and reachable Git history for secrets, credentials, personal data, sensitive operational evidence and other content unsuitable for publication;
+- confirmation that no private dependency or submodule will be exposed, broken or made unusable by anonymous cloning;
+- confirmation that publication is compatible with applicable product licensing, third-party content and dependency terms;
+- the exact repository source, selected branch, candidate SHA and App version to be deployed;
+- an identified rollback target and a plan for preserving App-private data; and
+- an operator responsible for restoring and verifying private visibility.
+
+Failure of any precondition prevents the public transition. Secret scanning or repository tooling may support the review, but a narrow current-tree scan alone is not evidence that full Git history is safe to publish.
+
+##### 18.8.3 Install or Update Window
+
+During the authorised public window:
+
+1. make only the authorised repository public;
+2. verify public visibility and record the observation time;
+3. add, repair or refresh only the recorded Home Assistant repository source and branch;
+4. install or update only the recorded App candidate;
+5. verify that Supervisor selected the expected repository, branch and App version;
+6. obtain sufficient deployed-content or running-version evidence to bind the running App to the recorded Git candidate; and
+7. restore private visibility promptly after the authorised operation, then independently verify and record that private access has been restored.
+
+The public window must not remain open for convenience. If privacy restoration fails or cannot be verified, stop further deployment activity, record the exposure, notify the user promptly and treat the repository as publicly exposed until restoration is proven. Any suspected credential or sensitive-data exposure follows the applicable incident/rotation route; merely making the repository private is insufficient remediation.
+
+##### 18.8.4 Preflight, Evidence and Data Preservation
+
+The minimum install/update preflight confirms:
+
+- the target is the intended Home Assistant environment and is suitable for Beta or stable use as applicable;
+- the recorded repository source and branch resolve to the intended candidate;
+- root `repository.yaml` and the recursively discovered App `config.yaml` are valid;
+- the App version corresponds to the candidate being deployed;
+- required images, build inputs, dependencies and submodules are anonymously obtainable during the selected route;
+- current App configuration and App-private data have a usable backup or preservation route; and
+- the prior working candidate and repository source are known.
+
+Deployment evidence records, at minimum, the governing Linear issue, target environment, repository source, selected branch, App slug/version, Git candidate identity, preflight result, install/update result, sufficient running-version or deployed-content verification, visibility-transition timestamps/results where applicable, and rollback outcome if used.
+
+Because Supervisor repository identity is derived from the repository source, removing/re-adding a source or changing its branch qualification may alter repository/App association. Before such a change, preserve App configuration and App-private data, determine whether the installed App would become detached or require reinstallation, and avoid destructive removal until restoration has been proven.
+
+##### 18.8.5 Failure and Rollback
+
+If clone, refresh, install, update, start-up or candidate verification fails:
+
+- do not promote or claim success for the candidate;
+- restore private visibility first where a public window remains open, unless keeping it open is explicitly re-authorised for a bounded recovery action;
+- preserve diagnostic evidence without retaining secrets;
+- prefer repair or rollback that preserves the existing Supervisor repository/App identity and App-private data;
+- roll back to the recorded prior working candidate/source with required user authority; and
+- reverify repository visibility, installed version, running state and data preservation after recovery.
+
+Removing a repository source or reinstalling the App is not a default rollback where it could change identity or discard App-private data.
+
+##### 18.8.6 Reusable Product Guidance
+
+Home Assistant App products record their repository source, Beta/stable branch routing, App identity, visibility model, data-preservation boundary and deployment-evidence route in `PROJECT_PROFILE.md` or the product's applicable deployment authority.
+
+The centrally managed `HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md` is the reusable operator aid for this route. It implements this section but does not independently authorise publication, deployment, rollback or promotion.
 
 ---
 
@@ -2770,6 +2861,7 @@ The baseline is:
 │   └── workflows/
 │       └── central-gov-hook.yml
 ├── AGENTS.md
+├── repository.yaml                  # Home Assistant App repositories only
 ├── 00_Governance/
 ├── 01_Architecture/
 ├── 02_Decisions/
@@ -2782,6 +2874,8 @@ The baseline is:
 ```
 
 `AGENTS.md` and `.github/workflows/central-gov-hook.yml` are the exact centrally managed paths outside `00_Governance/01_Central/**`. Their central sources and ownership are defined in Sections 3.1 and 22.1.
+
+Root `repository.yaml` is present only for a Home Assistant App custom repository that requires it. It is the approved platform-manifest exception defined by Section 18.8; it remains product-owned metadata and does not authorise root-level runtime implementation.
 
 The presence of the centrally managed hook does not make other `.github/**` content centrally owned; product repositories may retain other product-owned GitHub configuration subject to normal governance.
 
@@ -2805,6 +2899,7 @@ The standard structure is:
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
 │   ├── 02_Templates/
 │   │   ├── PROJECT_PROFILE.template.md
+│   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md
 │   │   ├── DIAGRAM_CONVENTION_LEARNING.md
 │   │   ├── DDR.template.md
 │   │   └── AUDIT_REVIEW_LOG.template.md
@@ -2861,6 +2956,8 @@ Consumers reference the provider-owned contract from their `PROJECT_PROFILE.md`;
 Contains executable or deployable product implementation.
 
 Source remains clearly separated from tests, validation tooling, governance, architecture, audit and deployment tooling.
+
+For a Home Assistant App custom repository, the authoritative App package, including its App `config.yaml`, remains under `04_Source/<app>/**`. Supervisor's recursive discovery permits this canonical location. The required product-root `repository.yaml` is metadata only; an App package must not be duplicated at repository root.
 
 #### E.7 `05_Tests/`
 

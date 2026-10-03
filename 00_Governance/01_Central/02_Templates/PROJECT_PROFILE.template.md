@@ -1,10 +1,10 @@
 # PROJECT_PROFILE: <Product name>
 
 **Template:** Project Profile
-**Version:** v1.2.0
+**Version:** v1.3.0
 **Status:** Approved
-**Approval tag:** `project-profile-template-v1.2.0`
-**Approval date:** 2026-09-05
+**Approval tag:** `project-profile-template-v1.3.0`
+**Approval date:** 2026-10-03
 
 This template is a centrally managed implementation aid for creating a conformant product `PROJECT_PROFILE.md`.
 
@@ -136,6 +136,24 @@ repository state does not prove deployed runtime truth.
 | Area | State | Statement | Authority/evidence |
 | --- | --- | --- | --- |
 | `<area>` | `<current implemented | current approved | approved target | proposed | historical | unresolved>` | `<concise statement>` | `<authoritative path or evidence route>` |
+
+## Required when applicable: Home Assistant App repository deployment
+
+Include this section when the product is installed or updated as a Home Assistant App through a Git custom repository. Omit it for other products.
+
+- App package path: `04_Source/<app>/`
+- App slug/identity: `<Home Assistant App slug>`
+- Repository manifest: `repository.yaml` at product root
+- Beta repository source: `https://github.com/<owner>/<repository>#beta`
+- Stable repository source: `<accepted stable branch-qualified or unqualified source>`
+- Repository visibility model: `<public | private with separately authorised temporary-public deployment windows | credentialed approved route>`
+- Beta environment association: `<environment(s) authorised to retain the #beta source>`
+- App-private data/configuration boundary: `<location, backup and preservation route>`
+- Deployment runbook: `<product runbook based on HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md>`
+- Deployment evidence route: `<Linear issue and supporting environment evidence>`
+- Prior working candidate / rollback route: `<how identified and restored>`
+
+Do not record credentials in the profile. A temporary-public model must acknowledge that publication cannot be retracted from third-party copies or caches and that every install/update window requires fresh explicit authority under Central Governance Section 18.8.
 
 ## Optional/recommended: Governance and work control
 
