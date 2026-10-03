@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.3.0
+**Governance version:** 11.4.0
 **Status:** Approved
-**Approval tag:** `governance-v11.3.0`
+**Approval tag:** `governance-v11.4.0`
 **Approval date:** 2026-10-03
 
 **Authority of appendices:**  
@@ -818,17 +818,57 @@ The user may perform work directly.
 
 Manual work is not required to imitate agent-specific mechanics that do not contribute to a control objective.
 
-#### 7.2 Codex Desktop
+#### 7.2 Local Codex Execution
 
-The user may explicitly instruct Codex Desktop to pick up or resume a Linear issue.
+The user may explicitly instruct Codex Desktop using `This computer`, or another supported local Codex surface, to pick up or resume a Linear issue.
 
-The agent should establish current issue context, confirm repository/change classes, reflect `In Progress`, perform the work and update workflow state normally.
+The agent should establish current issue context, confirm repository and change classes, reflect `In Progress`, perform the authorised phase and update workflow state normally.
 
-#### 7.3 Linear `@Codex`
+Local Codex execution is distinct from Codex Cloud execution. Both remain subject to the same applicable Governance.
 
-The user may invoke Codex through the supported Linear/Codex route.
+#### 7.3 Codex Cloud Execution and Linear Delegation
 
-The same downstream governance applies.
+Codex Cloud is a supported phase-based remote executor. It performs work in an isolated configured cloud environment; it is not an implicit workflow orchestrator.
+
+The Linear-to-Codex route is a supported way to invoke Codex Cloud from the governed issue. For initial implementation at G1, the normal current trigger is explicit delegation of the issue to Codex (`Delegate = Codex`) after execution has been authorised. Entering `Ready`, or any other Linear state, does not itself invoke Codex Cloud.
+
+`Execution: Codex Cloud` is a passive execution-route marker. It records that the issue is intended to use Codex Cloud after separate authorisation, but applying the label does not start work or satisfy G1.
+
+The governed issue supplies the scope, repository, workflow profile, Git route and acceptance criteria. Any additional initial handoff must identify the current implementation phase and require Codex to stop at the next human or action-specific gate.
+
+##### 7.3.1 Workflow State, Authority and Invocation
+
+The following are separate:
+
+- **workflow state** records where the issue is in its governed lifecycle;
+- **human or action-specific authority** permits a protected decision or action where Governance requires it; and
+- **Codex invocation** starts or resumes a Cloud execution phase through delegation or a supported explicit `@Codex` instruction.
+
+A state change, including entry into `Changes Requested`, `Ready for Validation` or `Beta`, must not be treated as an automatic Codex Cloud trigger. When Cloud execution reaches a gate requiring human judgement or separate action-specific authority, it must stop. Completion of one Cloud phase does not authorise the next protected phase.
+
+After the required decision or authority is recorded, any further Cloud work requires a fresh explicit invocation on the same Linear issue. The existing issue, branch, pull request and Cloud task context remain the normal continuity mechanism where Governance permits; unnecessary replacement work must not be created.
+
+Automatic invocation or resumption based on state changes is a separate orchestration capability and remains disabled unless enabled under Section 7.4.
+
+##### 7.3.2 Continuation Handoff Contract
+
+A Codex Cloud continuation instruction must identify the governed issue and current phase, preserve the applicable issue/branch/PR route, state the authorised work, and identify the next gate at which Codex must stop.
+
+The following are normative invocation patterns; equivalent wording may be used where it preserves the same boundaries:
+
+- **Initial implementation — G1:** set `Delegate = Codex` after execution is authorised. Where an additional instruction is supplied: `Perform the authorised implementation phase for this issue and stop at the next required human or action-specific gate.`
+- **Review rework — `Changes Requested`:** `@Codex Resume this issue. Address the human review comments on the existing PR, keep the same issue/branch/PR where Governance permits, re-run affected checks, and return the issue to Ready for Review when the revised change is complete. Do not proceed beyond human review.`
+- **Post-acceptance validation — `Ready for Validation`:** `@Codex Resume this issue at Ready for Validation. Validate the exact human-accepted state against the issue acceptance criteria and applicable Governance. Do not make substantive changes. Record the validation evidence. If a substantive correction is required, move the issue to Changes Requested and stop; otherwise advance only as far as the next authorised governance gate.`
+- **WF-01 Beta or deployment continuation:** resume Codex only after the applicable Beta or deployment authority has been explicitly provided. The instruction must identify the accepted candidate and the authorised action, and must not imply stable-promotion authority.
+- **Stable promotion or another protected action:** the continuation prompt does not substitute for the explicit authority Governance requires. Once that authority exists, a fresh instruction may direct Codex to perform only the authorised action and subsequent governed evidence or closure work.
+
+##### 7.3.3 Cloud Environment Responsibility
+
+A Codex Cloud environment provides execution context, including repository access, required runtime/tooling/dependencies, legitimately required environment variables or secrets, and legitimately required network access.
+
+The environment must be compatible with the repository's governed and tested dependency baseline. Central Governance does not prescribe one product-specific runtime version or setup through a generic cloud image.
+
+The environment does not determine or override Linear workflow, change classification, issue scope, Git branch route, review or validation requirements, or human-acceptance requirements. Separate cloud environments must not be used to encode `main` versus `beta` routing.
 
 #### 7.4 Future Automatic Delegation
 
@@ -857,6 +897,8 @@ Equivalent risk receives equivalent governance regardless of actor.
 
 Governance distinguishes the control that must be satisfied from the actor or mechanism used to satisfy it.
 
+Manual execution, local Codex and Codex Cloud therefore converge on the same applicable Linear lifecycle, Git traceability, human review, validation, Beta controls, completion evidence and human-acceptance boundaries.
+
 #### 7.7 Workflow-to-Git Route Binding
 
 Where the selected workflow profile determines the required PR target, that consequence must be made explicit rather than left for an executor or reviewer to infer.
@@ -869,7 +911,7 @@ For `WF-01` runtime-changing product work:
 - the established Git route must match the G0 routing decision; and
 - G2 independently verifies the actual PR base branch before substantive review begins.
 
-An executor, including an agent, must not silently default a `WF-01` issue PR to `main` or infer the target from repository defaults.
+An executor, including local Codex or Codex Cloud, must not silently default a `WF-01` issue PR to `main` or infer the target from repository defaults or the selected execution environment.
 
 If the required persistent `beta` branch is absent, runtime-changing `WF-01` work is not ready to start. The absence must be resolved as governed prerequisite work or through an applicable explicit user override; it must not first be discovered by attempting to retarget a completed PR.
 
