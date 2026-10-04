@@ -1,18 +1,47 @@
-7AB06354E000:
-  intent_id: classic_fm
-E38B36C82A81:
-  intent_id: classic_fm
-689C36C82A81:
-  intent_id: lbc_news
-EA9236C82A81:
-  intent_id: gold_radio
-DEADBEEF:
-  intent_id: bbc_radio_2
-DEADSMOOTH:
-  intent_id: smooth_radio
-DEADLBC:
-  intent_id: lbc_radio
-DEADNEWSBRIEF:
-  intent_id: news_briefing
-DEADMORNING:
-  intent_id: morning_routine
+tag_mapping_schema_version: 1
+tags:
+  7AB06354E000:
+    label: Dad - Classic FM
+    action:
+      type: astv_intent
+      intent_id: classic_fm
+  E38B36C82A81:
+    label: Classic FM
+    action:
+      type: astv_intent
+      intent_id: classic_fm
+  689C36C82A81:
+    label: LBC News
+    action:
+      type: astv_intent
+      intent_id: lbc_news
+  EA9236C82A81:
+    label: Gold Radio
+    action:
+      type: astv_intent
+      intent_id: gold_radio
+  DEADBEEF:
+    label: BBC Radio 2
+    action:
+      type: astv_intent
+      intent_id: bbc_radio_2
+  DEADSMOOTH:
+    label: Smooth Radio
+    action:
+      type: astv_intent
+      intent_id: smooth_radio
+  DEADLBC:
+    label: LBC Radio
+    action:
+      type: astv_intent
+      intent_id: lbc_radio
+  DEADNEWSBRIEF:
+    label: News Briefing
+    action:
+      type: astv_intent
+      intent_id: news_briefing
+  DEADMORNING:
+    label: Morning Routine
+    action:
+      type: astv_intent
+      intent_id: morning_routine
