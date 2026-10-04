@@ -1,5 +1,6 @@
 from pathlib import Path
-import re
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTOMATIONS = ROOT / "04_Source/config/packages/advnfc/advnfc_automations.yaml"
@@ -76,13 +77,25 @@ def test_missing_tag_record_stops_before_astv_invocation():
     assert "error: false" in source
 
 
-def test_invalid_tag_record_stops_before_astv_invocation():
+def test_uid_gateway_does_not_repeat_typed_action_validation():
     source = _text(SCRIPTS)
     gateway = source[source.index("  advnfc_uid_gateway:"):]
-    invalid_check = gateway.index("title: Invalid Tag Record")
-    selector_call = gateway.index("action: script.advnfc_select_tag_action")
-    assert invalid_check < selector_call
-    assert "stop: Invalid tag record" in source
+    assert "title: Invalid Tag Record" not in gateway
+    assert "stop: Invalid tag record" not in gateway
+    assert "action: script.advnfc_select_tag_action" in gateway
+
+
+def test_select_tag_action_uses_established_choose_structure():
+    source = _text(SCRIPTS)
+    selector_start = source.index("  advnfc_select_tag_action:")
+    selector_end = source.index("  advnfc_uid_gateway:")
+    selector = source[selector_start:selector_end]
+    assert "alias: Choose Tag Action based on action_type" in selector
+    assert "choose:" in selector
+    assert "alias: ASTV Intent" in selector
+    assert "value_template: '{{ action_type == ''astv_intent'' }}'" in selector
+    assert "default:" in selector
+    assert "stop: Unsupported tag action" in selector
 
 
 def test_contract_payload_preserves_intent_override_and_trigger_entity():
@@ -115,22 +128,16 @@ def test_invalid_record_model_rejects_blank_intent_id():
             raise AssertionError("blank intent_id must be rejected")
 
 
-def test_select_tag_action_uses_exact_three_field_astv_contract_and_does_not_send_uid():
-    source = _text(SCRIPTS)
-    match = re.search(
-        r"- action: script\.astv_intent_gateway\n"
-        r"\s+data:\n"
-        r"\s+intent_id:.*\n"
-        r"\s+input_area_override:.*\n"
-        r"\s+trigger_entity:.*",
-        source,
-    )
-    assert match is not None
-    block = match.group(0)
-    assert "intent_id:" in block
-    assert "input_area_override:" in block
-    assert "trigger_entity:" in block
-    assert "\n        uid:" not in block
+def test_select_tag_action_uses_exact_astv_contract_without_uid():
+    package = yaml.safe_load(_text(SCRIPTS))
+    selector = package["script"]["advnfc_select_tag_action"]
+    choose_action = selector["sequence"][1]["choose"][0]["sequence"][0]
+    assert choose_action["action"] == "script.astv_intent_gateway"
+    assert set(choose_action["data"]) == {
+        "intent_id",
+        "input_area_override",
+        "trigger_entity",
+    }
 
 
 def test_advnfc_lookup_owns_mapping_and_astv_only_receives_canonical_invocation():

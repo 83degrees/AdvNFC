@@ -152,9 +152,12 @@ No other NFC reader sensors are part of the current listener architecture being 
 - Captures the result as:
   - `tag_record_response`
 - Stops with `No Tag Record Found` when the lookup is empty.
-- Stops with `Invalid Tag Record` when the normalized typed action is absent or invalid.
 - On success, temporarily creates `Tag Record Found` with UID, trigger entity, resolved intent ID, and optional tag area override.
 - Calls `script.advnfc_select_tag_action` with the complete normalized tag record and originating `trigger_entity`.
+
+UID Gateway does not repeat the mapping loader's schema or typed-action
+validation. It consumes only normalized records from the active validated
+snapshot.
 
 UID Gateway does not resolve the catalogue request or area itself and does not call Select Intent Engine directly.
 
@@ -192,7 +195,9 @@ as runtime capability state.
 - Inputs:
   - complete normalized `tag_record`
   - originating `trigger_entity`
-- Inspects `tag_record.action.type` and fails explicitly for an unsupported type.
+- Uses the established selector `choose` structure to inspect
+  `tag_record.action.type`, route the supported action, and fail explicitly
+  through the default branch for an unsupported type.
 - For schema v1 `astv_intent`, extracts normalized `intent_id` and optional
   `area_override`, then calls `script.astv_intent_gateway` with exactly:
   - `intent_id`

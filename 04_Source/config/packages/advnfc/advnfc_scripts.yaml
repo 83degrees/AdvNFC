@@ -49,10 +49,20 @@ script:
     sequence:
     - variables:
         action_type: '{{ tag_record.action.type | default('''', true) | string | trim }}'
-    - if:
-      - condition: template
-        value_template: '{{ action_type != ''astv_intent'' }}'
-      then:
+    - alias: Choose Tag Action based on action_type
+      choose:
+      - alias: ASTV Intent
+        conditions:
+        - condition: template
+          value_template: '{{ action_type == ''astv_intent'' }}'
+        sequence:
+        - action: script.astv_intent_gateway
+          data:
+            intent_id: '{{ tag_record.action.intent_id }}'
+            input_area_override: >-
+              {{ tag_record.area_override | default('', true) }}
+            trigger_entity: '{{ trigger_entity }}'
+      default:
       - action: notify.persistent_notification
         data:
           title: Unsupported Tag Action
@@ -60,16 +70,7 @@ script:
             Tag record for UID '{{ tag_record.uid | default('(unknown)', true) }}'
             has unsupported action type '{{ action_type }}'.
       - stop: Unsupported tag action
-        error: false
-    - variables:
-        tag_intent_id: '{{ tag_record.action.intent_id | string | trim | lower }}'
-        tag_area_override: >-
-          {{ tag_record.area_override | default('', true) | string | trim }}
-    - action: script.astv_intent_gateway
-      data:
-        intent_id: '{{ tag_intent_id }}'
-        input_area_override: '{{ tag_area_override }}'
-        trigger_entity: '{{ trigger_entity }}'
+        error: true
 
   advnfc_uid_gateway:
     alias: AdvNFC - UID Gateway
@@ -102,21 +103,6 @@ script:
 
             {{ uid }}'
       - stop: No tag record found
-        error: false
-    - if:
-      - condition: template
-        value_template: >-
-          {{ tag_record_response.action.type | default('', true) | string | trim == ''
-             or tag_record_response.action.intent_id | default('', true) | string | trim == '' }}
-      then:
-      - action: notify.persistent_notification
-        data:
-          title: Invalid Tag Record
-          message: >-
-            Tag record for UID '{{ uid }}' has no valid typed action.
-
-            Record: {{ tag_record_response }}
-      - stop: Invalid tag record
         error: false
     - variables:
         tag_intent_id: '{{ tag_record_response.action.intent_id | string | trim | lower }}'
