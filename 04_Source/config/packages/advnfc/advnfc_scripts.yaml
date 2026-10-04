@@ -1,15 +1,17 @@
 # ============================================================================
 # AdvNFC Protected Scripts
 #
-# These scripts are stored as a package because they contain !include
-# statements. They must not be recreated in the Home Assistant Script UI,
-# otherwise the UI will overwrite the includes.
+# These governed scripts are loaded from the AdvNFC package. They must not be
+# recreated in the Home Assistant Script UI, which would create a separate
+# mutable copy outside this source authority.
 # ============================================================================
+
+advnfc:
 
 script:
   advnfc_find_tag_record:
     alias: 'AdvNFC - Fn: Find Tag Record'
-    description: Returns the tag-mapping record matching a scanned UID
+    description: Returns the normalized active tag-mapping record matching a scanned UID
     mode: parallel
     max: 10
     fields:
@@ -20,13 +22,54 @@ script:
         selector:
           text:
     sequence:
-    - variables:
-        tag_mapping: !include ../../AdvNFC/advnfc_tag_mapping.yaml
-        lookup_uid: '{{ uid | string | trim | upper }}'
-    - variables:
-        tag_record_response: '{{ tag_mapping.get(lookup_uid, {}) }}'
+    - action: advnfc.find_tag_record
+      data:
+        uid: '{{ uid }}'
+      response_variable: tag_record_response
     - stop: Tag lookup complete
       response_variable: tag_record_response
+
+  advnfc_select_tag_action:
+    alias: AdvNFC - Select Tag Action
+    description: Routes a validated typed AdvNFC tag action
+    mode: parallel
+    max: 10
+    fields:
+      tag_record:
+        name: Tag Record
+        description: Normalized validated AdvNFC tag record
+        required: true
+        selector:
+          object:
+      trigger_entity:
+        name: Trigger Entity
+        description: Originating Home Assistant reader entity
+        selector:
+          entity:
+    sequence:
+    - variables:
+        action_type: '{{ tag_record.action.type | default('''', true) | string | trim }}'
+    - if:
+      - condition: template
+        value_template: '{{ action_type != ''astv_intent'' }}'
+      then:
+      - action: notify.persistent_notification
+        data:
+          title: Unsupported Tag Action
+          message: >-
+            Tag record for UID '{{ tag_record.uid | default('(unknown)', true) }}'
+            has unsupported action type '{{ action_type }}'.
+      - stop: Unsupported tag action
+        error: false
+    - variables:
+        tag_intent_id: '{{ tag_record.action.intent_id | string | trim | lower }}'
+        tag_area_override: >-
+          {{ tag_record.area_override | default('', true) | string | trim }}
+    - action: script.astv_intent_gateway
+      data:
+        intent_id: '{{ tag_intent_id }}'
+        input_area_override: '{{ tag_area_override }}'
+        trigger_entity: '{{ trigger_entity }}'
 
   advnfc_uid_gateway:
     alias: AdvNFC - UID Gateway
@@ -62,22 +105,23 @@ script:
         error: false
     - if:
       - condition: template
-        value_template: '{{ tag_record_response.intent_id | default('''', true) | string
-          | trim == '''' }}'
+        value_template: >-
+          {{ tag_record_response.action.type | default('', true) | string | trim == ''
+             or tag_record_response.action.intent_id | default('', true) | string | trim == '' }}
       then:
       - action: notify.persistent_notification
         data:
           title: Invalid Tag Record
-          message: 'Tag record for UID ''{{ uid }}'' has no valid intent_id.
+          message: >-
+            Tag record for UID '{{ uid }}' has no valid typed action.
 
-
-            Record: {{ tag_record_response }}'
+            Record: {{ tag_record_response }}
       - stop: Invalid tag record
         error: false
     - variables:
-        tag_intent_id: '{{ tag_record_response.intent_id | string | trim }}'
-        tag_area_override: '{{ tag_record_response.area_override | default('''', true)
-          | string | trim }}'
+        tag_intent_id: '{{ tag_record_response.action.intent_id | string | trim | lower }}'
+        tag_area_override: >-
+          {{ tag_record_response.area_override | default('', true) | string | trim }}
     - action: notify.persistent_notification
       data:
         title: Tag Record Found
@@ -89,10 +133,9 @@ script:
 
           Area Override: {{ tag_area_override if tag_area_override != '''' else ''(none)''
           }}'
-    - action: script.astv_intent_gateway
+    - action: script.advnfc_select_tag_action
       data:
-        intent_id: '{{ tag_intent_id }}'
-        input_area_override: '{{ tag_area_override }}'
+        tag_record: '{{ tag_record_response }}'
         trigger_entity: '{{ trigger_entity }}'
     mode: parallel
     max: 10

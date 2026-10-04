@@ -1,0 +1,9 @@
+find_tag_record:
+  fields:
+    uid:
+      required: true
+      example: 7AB06354E000
+      selector:
+        text:
+
+reload_tag_mapping: {}
