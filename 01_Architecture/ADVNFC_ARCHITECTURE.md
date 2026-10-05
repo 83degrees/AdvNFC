@@ -10,6 +10,12 @@ The governed diagram at `Diagrams/ADVNFC_ARCHITECTURE.drawio` represents this se
 
 The Home Assistant portion of this architecture is the deployed AdvNFC runtime established by the completed ASTV Phase 0 carve-out. ASTV now begins at the provider-owned Intent Invocation boundary.
 
+The schema-v1 tag-mapping loader, immutable snapshot, normalized typed-action
+record, and Select Tag Action component described below are the proposed
+ASTV-299 target state. Until the accepted ASTV-299 candidate is deployed and
+validated through the WF-01 Beta route, production continues to use the current
+direct tag-to-intent mapping path.
+
 ASTV-247 extended AdvNFC source authority upstream to the Raspberry Pi reader-agent software captured from `pi-nfc-02`. ASTV-249 subsequently deployed and proved that governed reader-agent baseline in production as `advnfc-reader-agent.service`.
 
 ASTV-249 deployed the governed reader-agent baseline as `advnfc-reader-agent.service` on `pi-nfc-02`; the legacy `assistive-card-listener.service` is retired and non-authoritative. ASTV-256 removed the migration-era Home Assistant webhook and generic MQTT event outputs from the governed candidate. ASTV-257 changes the canonical retained topic namespace for replacement/test readers to `advnfc/<reader>/last_uid` while keeping `pi-nfc-02` frozen on its legacy production topic until physical retirement. MQTT remains the reader transport.
@@ -22,7 +28,7 @@ The current production flow is:
 2. The reader agent acquires the NFCID1 through `nfc-list`, normalizes it to uppercase, applies same-card suppression/reset behavior, and publishes the retained per-reader MQTT state.
 3. The retained per-reader MQTT state is consumed by Home Assistant and represented by the configured reader sensor. The canonical ASTV-257 topic is `advnfc/<reader>/last_uid`; during coexistence `pi-nfc-02` remains on `assistive/nfc/pi-nfc-02/last_uid`.
 4. AdvNFC Tag Listener filters invalid/recovery transitions and calls AdvNFC UID Gateway.
-5. AdvNFC resolves the governed tag mapping and invokes ASTV through the provider-owned Intent Invocation interface.
+5. AdvNFC resolves the governed schema-v1 tag mapping into a typed action, selects the supported action route, and invokes ASTV through the provider-owned Intent Invocation interface.
 
 ASTV-249 established the governed production reader-agent deployment on `pi-nfc-02`. ASTV-256 is not to be deployed to that production reader; its cleaned candidate will be validated on a separate test reader device before any later production promotion is considered.
 
@@ -146,12 +152,12 @@ No other NFC reader sensors are part of the current listener architecture being 
 - Captures the result as:
   - `tag_record_response`
 - Stops with `No Tag Record Found` when the lookup is empty.
-- Stops with `Invalid Tag Record` when `intent_id` is absent or blank.
 - On success, temporarily creates `Tag Record Found` with UID, trigger entity, resolved intent ID, and optional tag area override.
-- Invokes the provider-owned ASTV Intent Invocation interface at `script.astv_intent_gateway` with:
-  - `intent_id` from `tag_record_response.intent_id`
-  - `input_area_override` from optional `tag_record_response.area_override`
-  - `trigger_entity`
+- Calls `script.advnfc_select_tag_action` with the complete normalized tag record and originating `trigger_entity`.
+
+UID Gateway does not repeat the mapping loader's schema or typed-action
+validation. It consumes only normalized records from the active validated
+snapshot.
 
 UID Gateway does not resolve the catalogue request or area itself and does not call Select Intent Engine directly.
 
@@ -164,7 +170,49 @@ UID Gateway does not resolve the catalogue request or area itself and does not c
   - AdvNFC Tag Mapping
   - `advnfc_tag_mapping.yaml`
 
-The function normalizes the supplied UID using string conversion, trimming, and uppercasing, then performs an exact mapping lookup. It returns `{}` for an unknown UID and remains side-effect-free.
+The script delegates its lookup to the response-only `advnfc.find_tag_record` integration action. The loader normalizes the supplied UID using string conversion, trimming, and uppercasing, then performs an exact lookup against the active immutable snapshot. It returns `{}` for an unknown UID and remains side-effect-free.
+
+The normalized result contains `uid`, `label`, optional `area_override`, and a typed `action` object. The typed action is not collapsed to `intent_id` during lookup.
+
+### AdvNFC Tag Mapping Loader
+
+The AdvNFC Home Assistant integration owns loading and validating
+`advnfc_tag_mapping.yaml` against the closed schema defined by
+`ADVNFC_TAG_MAPPING_SCHEMA_V1.md`.
+
+The integration is activated explicitly by the top-level `advnfc:` entry in
+Home Assistant `configuration.yaml`. Integration activation is not embedded in
+the AdvNFC scripts package; that package owns scripts only.
+
+Initial load and explicit reload validate the entire candidate document,
+including duplicate keys, canonical UID storage, closed fields, required
+values, action type and intent-ID structure, and Home Assistant area
+resolution. A valid candidate atomically replaces the active immutable
+snapshot. A failed reload preserves the previous snapshot.
+
+`sensor.advnfc_tag_mapping` is a registered, non-polling Home Assistant
+`SensorEntity` owned by the AdvNFC sensor platform. It has the stable unique ID
+`advnfc_tag_mapping`, appears beneath the AdvNFC integration in the entity
+registry, and exposes the active schema version and mapping count as runtime
+capability state. A successful mapping activation dispatches an update to the
+entity; a failed reload leaves the prior snapshot and sensor state unchanged.
+
+### AdvNFC - Select Tag Action
+
+- Entity: `script.advnfc_select_tag_action`
+- Inputs:
+  - complete normalized `tag_record`
+  - originating `trigger_entity`
+- Uses the established selector `choose` structure to inspect
+  `tag_record.action.type`, route the supported action, and fail explicitly
+  through the default branch for an unsupported type.
+- For schema v1 `astv_intent`, extracts normalized `intent_id` and optional
+  `area_override`, then calls `script.astv_intent_gateway` with exactly:
+  - `intent_id`
+  - `input_area_override`
+  - `trigger_entity`
+
+No separate ASTV-specific AdvNFC handler exists in schema v1.
 
 ## ASTV Intent Invocation Boundary
 
@@ -203,7 +251,7 @@ AdvNFC does not reproduce or alter that precedence.
 | AdvNFC reader agent | AdvNFC-owned software | Acquires UID, applies captured suppression/reset behavior, and emits the retained per-reader MQTT state |
 | MQTT broker / network transport | External infrastructure | Carries reader-agent MQTT publications defined by `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` to Home Assistant |
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
-| `advnfc_tag_mapping.yaml` | Data source | Active AdvNFC Find Tag Record lookup after cutover |
+| `advnfc_tag_mapping.yaml` | Data source | Closed schema-v1 candidate loaded and validated into one immutable active AdvNFC mapping snapshot |
 | ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
 
 ## Interface Naming and Return Boundaries
@@ -213,6 +261,8 @@ Exact established names are preserved where they describe the existing Phase 0 b
 - `uid`
 - `trigger_entity`
 - `tag_record_response`
+- `tag_record`
+- `action.type`
 - `intent_id`
 - `input_area_override`
 
@@ -220,7 +270,7 @@ A caller's `response_variable` name describes how that caller captures a result.
 
 ## Migration Invariant
 
-The Home Assistant carve-out preserves the former ASTV Phase 0 behavior. ASTV-256 preserves the reader acquisition, retained MQTT state, UID normalization, suppression/reset behavior, and downstream AdvNFC invocation semantics while removing unused migration-era outputs.
+The Home Assistant carve-out preserves the former ASTV Phase 0 behavior. ASTV-299 adds the governed schema-v1 typed-action seam while preserving equivalent downstream ASTV invocation semantics for every migrated mapping.
 
 For the same valid reader state change and equivalent tag mapping, AdvNFC must produce the same ASTV Intent Invocation values as the current ASTV Phase 0 path:
 
@@ -237,6 +287,7 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 - `automation.advnfc_tag_listener`
 - `script.advnfc_uid_gateway`
 - `script.advnfc_find_tag_record`
+- `script.advnfc_select_tag_action`
 - `advnfc_tag_mapping.yaml`
 
 ASTV begins at the provider-owned Intent Invocation boundary.

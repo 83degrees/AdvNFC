@@ -1,0 +1,18 @@
+{
+  "services": {
+    "find_tag_record": {
+      "name": "Find tag record",
+      "description": "Return the normalized active record for an NFC UID.",
+      "fields": {
+        "uid": {
+          "name": "UID",
+          "description": "The NFC UID to normalize and look up."
+        }
+      }
+    },
+    "reload_tag_mapping": {
+      "name": "Reload tag mapping",
+      "description": "Validate and atomically activate the candidate AdvNFC tag mapping."
+    }
+  }
+}
