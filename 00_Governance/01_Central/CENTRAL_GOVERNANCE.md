@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.6.0
+**Governance version:** 11.7.0
 **Status:** Approved
-**Approval tag:** `governance-v11.6.0`
+**Approval tag:** `governance-v11.7.0`
 **Approval date:** 2026-10-05
 
 **Authority of appendices:**  
@@ -146,6 +146,7 @@ Its authoritative central artefacts include:
 - `/Standards/Product/DDR_STANDARD.md`
 - `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
 - `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
+- `/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
 - `/Templates/PROJECT_PROFILE.template.md`
@@ -182,7 +183,7 @@ A centrally governed standard:
 Centrally governed Standards have one of two applicability categories:
 
 - **Product-applicable** — the Standard is required as product-local working authority and is projected unchanged to every product to which it applies;
-- **Central-only** — the Standard governs central Governance operations only and is not part of the product projection unless its applicability is deliberately changed through governed work.
+- **Central-only** — the Standard is not part of the product projection and is loaded from its authoritative central path only when central Governance operations or a rulebook-routed mechanism-specific task makes it applicable.
 
 Repository structure makes applicability visible. Central-only Standards are stored under:
 
@@ -200,6 +201,7 @@ The centrally governed standards are:
 | `DDR_STANDARD.md` | Product-applicable | `/Standards/Product/DDR_STANDARD.md` | `00_Governance/01_Central/01_Standards/DDR_STANDARD.md` |
 | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
+| `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Central-only | `/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | — |
 | `GOVERNANCE_LIFECYCLE_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md` | — |
 | `GOVERNANCE_DISTRIBUTION_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md` | — |
 
@@ -289,6 +291,7 @@ Different authoritative sources answer different questions.
 | Architecture diagram construction and shared presentation conventions | `ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | DDR construction, numbering, status and supersession specification | `DDR_STANDARD.md` |
 | Cross-product deployable-unit classification, source/packaging structure and deployment architecture | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
+| HACS deployment, Beta identity, stable release, validation and rollback for governed Home Assistant custom integrations | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | Production-evidence acquisition, freshness, retention, integrity and reuse practice | `PRODUCTION_EVIDENCE_STANDARD.md` |
 | Central Governance release/provenance lifecycle mechanics | `GOVERNANCE_LIFECYCLE_STANDARD.md` |
 | Central Governance downstream distribution protocol | `GOVERNANCE_DISTRIBUTION_STANDARD.md` |
@@ -1710,7 +1713,7 @@ Before transition from `Beta` to `Done`, the same Beta-tested runtime-affecting 
 
 No second substantive human review is required solely for unchanged promotion of already accepted and Beta-tested content.
 
-The implementation issue is complete when the applicable Appendix A completion gate is satisfied, but no stable product release is automatically created.
+The implementation issue is complete when the applicable Appendix A completion gate is satisfied. No stable product release is automatically created unless an applicable mechanism-specific Standard expressly defines release creation as part of the authorised stable-promotion action.
 
 #### 18.5 Failed Beta
 
@@ -1844,6 +1847,16 @@ Home Assistant App products record their repository source, Beta/stable branch r
 
 The centrally managed `HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md` is the reusable operator aid for this route. It implements this section but does not independently authorise publication, deployment, rollback or promotion.
 
+#### 18.9 Home Assistant Custom-Integration Deployment
+
+A governed Home Assistant custom integration whose approved deployment mechanism is HACS must use the central-only Home Assistant Integration Deployment Standard at:
+
+`/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
+
+That Standard is the detailed authority for HACS installation/update, immutable lightweight-tag Beta identity, operator handoff, post-deployment validation, stable release and instance-specific rollback. Manual copying into `/config/custom_components` is exception-only and must not be the routine production deployment mechanism.
+
+The Standard does not replace applicable workflow gates or independently authorise Beta deployment, stable promotion, production deployment or rollback.
+
 ---
 
 ## Part VI — Stable Product Release
@@ -1858,7 +1871,7 @@ It is product-level activity separate from individual issue completion.
 
 Stable promotion requires explicit user authorisation.
 
-Successful beta does not automatically create a release.
+Successful beta does not itself authorise stable promotion or generally create a release. Where an applicable mechanism-specific Standard expressly binds automatic stable-release creation to the authorised promotion of Beta-covered runtime content and the selected stable release SHA satisfies Sections 19.3 and 19.4, no second release-creation authorisation is required.
 
 #### 19.2 Semantic Versioning
 
@@ -1905,7 +1918,7 @@ Every stable release receives:
 - a SemVer Git tag;
 - a corresponding GitHub Release.
 
-Beta SHAs do not require GitHub Releases or beta tags.
+Beta SHAs do not generally require GitHub Releases or beta tags. The Home Assistant Integration Deployment Standard requires an immutable lightweight Beta tag as the HACS-facing install identity but does not create a GitHub prerelease.
 
 The GitHub Release should concisely identify:
 
@@ -2231,7 +2244,7 @@ Changes to a centrally governed Standard follow the applicable workflow profile,
 Repository structure defines Standard applicability:
 
 - `/Standards/Product/` — product-applicable and projected unchanged to products to which it applies;
-- `/Standards/Central/` — central-only and not part of product projection while it remains central-only.
+- `/Standards/Central/` — central-only and not part of product projection while it remains central-only; applicable work loads it from its authoritative central path where this rulebook routes that subject to it.
 
 A Standard may be released independently of a new `CENTRAL_GOVERNANCE.md` version where the rulebook itself is unchanged.
 
