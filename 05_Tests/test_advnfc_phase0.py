@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import yaml
@@ -6,6 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 AUTOMATIONS = ROOT / "04_Source/config/packages/advnfc/advnfc_automations.yaml"
 SCRIPTS = ROOT / "04_Source/config/packages/advnfc/advnfc_scripts.yaml"
 MAPPING = ROOT / "04_Source/config/AdvNFC/advnfc_tag_mapping.yaml"
+INTEGRATION = ROOT / "04_Source/config/custom_components/advnfc/__init__.py"
+SENSOR = ROOT / "04_Source/config/custom_components/advnfc/sensor.py"
+DEPLOYMENT = ROOT / "08_Deployment/ASTV-299_HOME_ASSISTANT_BETA_DEPLOYMENT.md"
+MANIFEST = ROOT / "04_Source/config/custom_components/advnfc/manifest.json"
 
 
 def _text(path: Path) -> str:
@@ -56,6 +61,39 @@ def test_uid_normalization_is_trim_and_uppercase():
     assert _normalize_uid("  7ab06354e000  ") == "7AB06354E000"
     source = _text(SCRIPTS)
     assert "action: advnfc.find_tag_record" in source
+
+
+def test_integration_activation_is_configuration_owned_not_script_owned():
+    package = yaml.safe_load(_text(SCRIPTS))
+    assert "advnfc" not in package
+    deployment = _text(DEPLOYMENT)
+    assert "/config/configuration.yaml" in deployment
+    assert "```yaml\nadvnfc:\n```" in deployment
+
+
+def test_capability_state_uses_registered_sensor_platform():
+    integration = _text(INTEGRATION)
+    sensor = _text(SENSOR)
+    assert "hass.states.async_set" not in integration
+    assert "Platform.SENSOR" in integration
+    assert "discovery.async_load_platform" in integration
+    assert "class AdvNFCTagMappingSensor(SensorEntity)" in sensor
+    assert '_attr_unique_id = "advnfc_tag_mapping"' in sensor
+    assert "async_add_entities([AdvNFCTagMappingSensor(store)])" in sensor
+
+
+def test_capability_sensor_updates_after_successful_mapping_activation():
+    integration = _text(INTEGRATION)
+    sensor = _text(SENSOR)
+    assert "async_dispatcher_send(hass, SIGNAL_TAG_MAPPING_UPDATED)" in integration
+    assert "async_dispatcher_connect(" in sensor
+    assert "self.async_write_ha_state" in sensor
+
+
+def test_corrective_integration_has_distinct_patch_version():
+    manifest = json.loads(_text(MANIFEST))
+    assert manifest["version"] == "1.0.1"
+    assert "version is `1.0.1`" in _text(DEPLOYMENT)
 
 
 def test_tag_mapping_preserves_existing_phase_zero_records():

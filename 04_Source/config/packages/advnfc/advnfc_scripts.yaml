@@ -6,8 +6,6 @@
 # mutable copy outside this source authority.
 # ============================================================================
 
-advnfc:
-
 script:
   advnfc_find_tag_record:
     alias: 'AdvNFC - Fn: Find Tag Record'

@@ -180,14 +180,22 @@ The AdvNFC Home Assistant integration owns loading and validating
 `advnfc_tag_mapping.yaml` against the closed schema defined by
 `ADVNFC_TAG_MAPPING_SCHEMA_V1.md`.
 
+The integration is activated explicitly by the top-level `advnfc:` entry in
+Home Assistant `configuration.yaml`. Integration activation is not embedded in
+the AdvNFC scripts package; that package owns scripts only.
+
 Initial load and explicit reload validate the entire candidate document,
 including duplicate keys, canonical UID storage, closed fields, required
 values, action type and intent-ID structure, and Home Assistant area
 resolution. A valid candidate atomically replaces the active immutable
 snapshot. A failed reload preserves the previous snapshot.
 
-`sensor.advnfc_tag_mapping` exposes the active schema version and mapping count
-as runtime capability state.
+`sensor.advnfc_tag_mapping` is a registered, non-polling Home Assistant
+`SensorEntity` owned by the AdvNFC sensor platform. It has the stable unique ID
+`advnfc_tag_mapping`, appears beneath the AdvNFC integration in the entity
+registry, and exposes the active schema version and mapping count as runtime
+capability state. A successful mapping activation dispatches an update to the
+entity; a failed reload leaves the prior snapshot and sensor state unchanged.
 
 ### AdvNFC - Select Tag Action
 
