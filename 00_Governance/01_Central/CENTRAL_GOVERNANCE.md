@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.7.0
+**Governance version:** 11.8.0
 **Status:** Approved
-**Approval tag:** `governance-v11.7.0`
+**Approval tag:** `governance-v11.8.0`
 **Approval date:** 2026-10-05
 
 **Authority of appendices:**  
@@ -146,7 +146,7 @@ Its authoritative central artefacts include:
 - `/Standards/Product/DDR_STANDARD.md`
 - `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
 - `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
-- `/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
+- `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
 - `/Templates/PROJECT_PROFILE.template.md`
@@ -201,7 +201,7 @@ The centrally governed standards are:
 | `DDR_STANDARD.md` | Product-applicable | `/Standards/Product/DDR_STANDARD.md` | `00_Governance/01_Central/01_Standards/DDR_STANDARD.md` |
 | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
-| `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Central-only | `/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | — |
+| `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | `GOVERNANCE_LIFECYCLE_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md` | — |
 | `GOVERNANCE_DISTRIBUTION_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md` | — |
 
@@ -1849,9 +1849,9 @@ The centrally managed `HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md` is the
 
 #### 18.9 Home Assistant Custom-Integration Deployment
 
-A governed Home Assistant custom integration whose approved deployment mechanism is HACS must use the central-only Home Assistant Integration Deployment Standard at:
+A governed Home Assistant custom integration whose approved deployment mechanism is HACS must use the product-applicable Home Assistant Integration Deployment Standard projected at:
 
-`/Standards/Central/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
+`00_Governance/01_Central/01_Standards/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 
 That Standard is the detailed authority for HACS installation/update, immutable lightweight-tag Beta identity, operator handoff, post-deployment validation, stable release and instance-specific rollback. Manual copying into `/config/custom_components` is exception-only and must not be the routine production deployment mechanism.
 
@@ -2913,6 +2913,7 @@ The standard structure is:
 │   │   ├── ARCHITECTURE_DIAGRAM_STANDARD.md
 │   │   ├── DDR_STANDARD.md
 │   │   ├── DEPLOYMENT_ARCHITECTURE_STANDARD.md
+│   │   ├── HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
 │   ├── 02_Templates/
 │   │   ├── PROJECT_PROFILE.template.md
