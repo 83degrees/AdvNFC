@@ -1,10 +1,10 @@
 # Home Assistant App Custom-Repository Deployment Runbook: <Product>
 
 **Template:** Home Assistant App Deployment Runbook
-**Version:** v1.0.0
+**Version:** v1.1.0
 **Status:** Approved
-**Approval tag:** `home-assistant-app-deployment-runbook-template-v1.0.0`
-**Approval date:** 2026-10-03
+**Approval tag:** `home-assistant-app-deployment-runbook-template-v1.1.0`
+**Approval date:** 2026-10-05
 
 This centrally managed template is an implementation aid for governed Home Assistant App install, update and rollback through a Git custom repository. Central Governance Section 18.8 is authoritative. This runbook does not grant publication, deployment, rollback or promotion authority.
 
@@ -32,7 +32,7 @@ This centrally managed template is an implementation aid for governed Home Assis
 ## 3. Repository and publication preflight
 
 - [ ] Root `repository.yaml` validates.
-- [ ] The App package and its `config.yaml` are under `04_Source/<app>/**`.
+- [ ] The App package and its `config.yaml` are under canonical `04_Implementation/haos/source/apps/<app>/**`, or under legacy `04_Source/<app>/**` only while an explicit migration issue remains open.
 - [ ] No duplicate App package exists at repository root.
 - [ ] The complete current tree and reachable Git history were reviewed for secrets, credentials, personal data, sensitive operational evidence and other non-public content.
 - [ ] No private dependency or submodule will be exposed, broken or made unusable by anonymous access.

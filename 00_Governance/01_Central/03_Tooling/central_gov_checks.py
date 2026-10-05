@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# **Version:** v1.1.0
+# **Version:** v1.2.0
 # **Status:** Approved
-# **Approval tag:** `central-gov-checks-v1.1.0`
-# **Approval date:** 2026-10-03
+# **Approval tag:** `central-gov-checks-v1.2.0`
+# **Approval date:** 2026-10-05
 
 """Central Governance pull-request checks."""
 
@@ -10,7 +10,18 @@ import argparse
 import pathlib
 import sys
 
-RUNTIME_ROOT = "04_Source"
+CANONICAL_IMPLEMENTATION_ROOT = "04_Implementation"
+LEGACY_IMPLEMENTATION_ROOT = "04_Source"
+HACS_INTEGRATION_ROOT = "custom_components"
+RUNTIME_ROOTS = {
+    CANONICAL_IMPLEMENTATION_ROOT,
+    LEGACY_IMPLEMENTATION_ROOT,
+    HACS_INTEGRATION_ROOT,
+}
+HOME_ASSISTANT_APP_ROOTS = {
+    "04_Implementation/haos/source/apps",
+    LEGACY_IMPLEMENTATION_ROOT,
+}
 REQUIRED_RUNTIME_BASE = "beta"
 PROMOTION_HEAD = "beta"
 PROMOTION_BASE = "main"
@@ -18,9 +29,17 @@ HOME_ASSISTANT_REPOSITORY_MANIFEST = "repository.yaml"
 HOME_ASSISTANT_CONFIG_SUFFIXES = {".json", ".yaml", ".yml"}
 
 
-def is_runtime_path(path):
+def is_under(path, root):
     normalized = pathlib.PurePosixPath(path).as_posix().lstrip("./")
-    return normalized == RUNTIME_ROOT or normalized.startswith(f"{RUNTIME_ROOT}/")
+    return normalized == root or normalized.startswith(f"{root}/")
+
+
+def is_runtime_path(path):
+    return any(is_under(path, root) for root in RUNTIME_ROOTS)
+
+
+def is_home_assistant_app_path(path):
+    return any(is_under(path, root) for root in HOME_ASSISTANT_APP_ROOTS)
 
 
 def evaluate_wf01_route(head_branch, base_branch, changed_files, beta_exists):
@@ -60,16 +79,18 @@ def evaluate_home_assistant_app_layout(repository_root):
     if not configs:
         return False, "Root repository.yaml exists but no recursively discoverable App config was found."
 
-    noncanonical = [path for path in configs if not is_runtime_path(path)]
+    noncanonical = [path for path in configs if not is_home_assistant_app_path(path)]
     if noncanonical:
         return False, (
-            "Root repository.yaml exists but App config must be under '04_Source/**': "
+            "Root repository.yaml exists but App config must be under canonical "
+            "'04_Implementation/haos/source/apps/**' or transitionally supported "
+            "'04_Source/**': "
             + ", ".join(noncanonical)
         )
 
     return True, (
         "Root repository.yaml is metadata and all recursively discoverable App config is under "
-        "'04_Source/**'."
+        "the canonical or transitionally supported App source path."
     )
 
 

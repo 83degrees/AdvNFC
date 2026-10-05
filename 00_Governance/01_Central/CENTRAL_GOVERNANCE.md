@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.5.0
+**Governance version:** 11.6.0
 **Status:** Approved
-**Approval tag:** `governance-v11.5.0`
-**Approval date:** 2026-10-03
+**Approval tag:** `governance-v11.6.0`
+**Approval date:** 2026-10-05
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -144,6 +144,7 @@ Its authoritative central artefacts include:
 - `/CENTRAL_GOVERNANCE.md`
 - `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md`
 - `/Standards/Product/DDR_STANDARD.md`
+- `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
 - `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
@@ -197,6 +198,7 @@ The centrally governed standards are:
 |---|---|---|---|
 | `ARCHITECTURE_DIAGRAM_STANDARD.md` | Product-applicable | `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md` | `00_Governance/01_Central/01_Standards/ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | `DDR_STANDARD.md` | Product-applicable | `/Standards/Product/DDR_STANDARD.md` | `00_Governance/01_Central/01_Standards/DDR_STANDARD.md` |
+| `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
 | `GOVERNANCE_LIFECYCLE_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md` | — |
 | `GOVERNANCE_DISTRIBUTION_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md` | — |
@@ -286,6 +288,7 @@ Different authoritative sources answer different questions.
 | Approved product architecture | Approved `*_ARCHITECTURE.md` |
 | Architecture diagram construction and shared presentation conventions | `ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | DDR construction, numbering, status and supersession specification | `DDR_STANDARD.md` |
+| Cross-product deployable-unit classification, source/packaging structure and deployment architecture | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | Production-evidence acquisition, freshness, retention, integrity and reuse practice | `PRODUCTION_EVIDENCE_STANDARD.md` |
 | Central Governance release/provenance lifecycle mechanics | `GOVERNANCE_LIFECYCLE_STANDARD.md` |
 | Central Governance downstream distribution protocol | `GOVERNANCE_DISTRIBUTION_STANDARD.md` |
@@ -461,7 +464,7 @@ These exact out-of-subtree exceptions do not authorise central ownership of othe
 
 Templates within `01_Central/02_Templates/` are centrally managed implementation aids. Their presence in a product repository does not make them independent governance authorities.
 
-`ARCHITECTURE_DIAGRAM_STANDARD.md`, `DDR_STANDARD.md` and `PRODUCTION_EVIDENCE_STANDARD.md` are exact deployed copies of their centrally approved standards and must not contain product-specific amendments.
+`ARCHITECTURE_DIAGRAM_STANDARD.md`, `DDR_STANDARD.md`, `DEPLOYMENT_ARCHITECTURE_STANDARD.md` and `PRODUCTION_EVIDENCE_STANDARD.md` are exact deployed copies of their centrally approved standards and must not contain product-specific amendments.
 
 Product-specific architectural meaning belongs in the applicable approved architecture documentation. Product-specific durable design rationale belongs in the applicable product DDRs. Product/environment evidence routes belong in the applicable Project Profile or environment authority.
 
@@ -1181,9 +1184,9 @@ For normal `WF-01` runtime-changing work, the reviewed issue PR targets persiste
 
 Before substantive review begins at G2, the actual PR base must be independently verified against the workflow-to-Git route recorded for the issue. A PR that does not target the branch required by its selected workflow fails G2 and must not be treated as review-ready.
 
-Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the first mechanical routing control, a PR that changes any path under canonical `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check. Where product-root `repository.yaml` identifies a Home Assistant App repository, the checker also confirms that recursively discoverable App configuration exists only beneath `04_Source/**` and that no duplicate root-level App package is introduced.
+Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the mechanical routing control, a PR that changes any path under canonical `04_Implementation/**`, the approved HACS-native root `custom_components/**` exception, or transitionally supported legacy `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check. Where product-root `repository.yaml` identifies a Home Assistant App repository, the checker also confirms that recursively discoverable App configuration exists beneath canonical `04_Implementation/haos/source/apps/**` or transitionally supported legacy `04_Source/**`, and that no duplicate root-level App package is introduced.
 
-This path-based check is an enforcement mechanism for the standard repository model, not a substitute for correct semantic classification. Runtime-affecting implementation placed outside `04_Source/**` remains a repository-model violation and must not be treated as non-runtime merely because the routing check did not classify its path as runtime implementation.
+This path-based check is an enforcement mechanism for the standard repository model, not a substitute for correct semantic classification. Runtime-affecting implementation placed outside the recognised canonical, approved-exception or transition paths remains a repository-model violation and must not be treated as non-runtime merely because the routing check did not classify its path as runtime implementation.
 
 The centrally managed check supplies independent mechanical evidence for G2. Where repository-plan or platform limits do not make the check a technically mandatory merge status, Governance still treats a failing or absent required check as a failed G2 condition; the work must not proceed to substantive review or merge as though the route were valid.
 
@@ -1759,7 +1762,7 @@ This section applies where a governed Home Assistant App is installed or updated
 
 The external platform basis for this model is the Home Assistant developer documentation for [App repositories](https://developers.home-assistant.io/docs/apps/repository/) and [App configuration](https://developers.home-assistant.io/docs/apps/configuration/), together with Supervisor source commit `bdcba61fc7c1500e96d2e319d07546f7b896e067`: `supervisor/validate.py` defines the optional `#branch` repository syntax, `supervisor/store/git.py` passes the parsed branch to the clone operation, and `supervisor/store/data.py` recursively discovers App configuration. These sources describe platform behaviour; this Governance section defines the controls for using it.
 
-Home Assistant requires a repository configuration file named `repository.yaml` at the repository root. Supervisor recursively discovers App `config.yaml` files in the repository. A governed product therefore keeps the authoritative App package under `04_Source/<app>/**` and may place only the required `repository.yaml` metadata at the product root. Root `repository.yaml` is an approved platform-manifest exception under Section 3.2 and Appendix E; it does not authorise root-level runtime implementation or a duplicate App package.
+Home Assistant requires a repository configuration file named `repository.yaml` at the repository root. Supervisor recursively discovers App `config.yaml` files in the repository. A governed product therefore keeps the authoritative App package under `04_Implementation/haos/source/apps/<app>/**` and may place only the required `repository.yaml` metadata at the product root. A product awaiting its controlled structure migration may retain the App package under legacy `04_Source/<app>/**` until its migration issue completes. Root `repository.yaml` is an approved platform-manifest exception under Section 3.2 and Appendix E; it does not authorise root-level runtime implementation or a duplicate App package.
 
 The Home Assistant repository source is part of deployment identity. A branch-qualified source of the form:
 
@@ -2866,7 +2869,7 @@ The baseline is:
 ├── 01_Architecture/
 ├── 02_Decisions/
 ├── 03_Contracts/
-├── 04_Source/
+├── 04_Implementation/
 ├── 05_Tests/
 ├── 06_Validation/
 ├── 07_Audit/
@@ -2896,6 +2899,7 @@ The standard structure is:
 │   ├── 01_Standards/
 │   │   ├── ARCHITECTURE_DIAGRAM_STANDARD.md
 │   │   ├── DDR_STANDARD.md
+│   │   ├── DEPLOYMENT_ARCHITECTURE_STANDARD.md
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
 │   ├── 02_Templates/
 │   │   ├── PROJECT_PROFILE.template.md
@@ -2951,13 +2955,35 @@ Contains authoritative interfaces/contracts provided by this product.
 
 Consumers reference the provider-owned contract from their `PROJECT_PROFILE.md`; they do not maintain authoritative duplicates.
 
-#### E.6 `04_Source/`
+#### E.6 `04_Implementation/`
 
-Contains executable or deployable product implementation.
+Contains authoritative deployable payload and the machine-consumed packaging or distribution machinery that builds, prepares or exposes it.
 
-Source remains clearly separated from tests, validation tooling, governance, architecture, audit and deployment tooling.
+The canonical structure is target-platform first:
 
-For a Home Assistant App custom repository, the authoritative App package, including its App `config.yaml`, remains under `04_Source/<app>/**`. Supervisor's recursive discovery permits this canonical location. The required product-root `repository.yaml` is metadata only; an App package must not be duplicated at repository root.
+```text
+04_Implementation/
+├── haos/
+│   ├── source/
+│   │   ├── config/
+│   │   └── apps/
+│   └── packaging/
+│       ├── hacs/
+│       └── apps/
+└── rpi_os/
+    ├── source/
+    │   ├── opt/
+    │   ├── lib/
+    │   └── usr/
+    └── packaging/
+        └── deb/
+```
+
+Each target separates deployable source from mechanism-specific packaging. Source paths mirror the relevant deployment root where the target permits it. The detailed deployable-unit model, path meaning, platform exceptions and transition controls are defined in `DEPLOYMENT_ARCHITECTURE_STANDARD.md`.
+
+Platform-required root descriptors may exist only where this Governance book or the Deployment Architecture Standard recognises the exact exception. They remain thin metadata or entrypoints and must not become duplicate authoritative payload.
+
+Legacy `04_Source/**` remains a supported transition location only for products awaiting their explicit repository migration issue. Migration must preserve runtime behaviour and deployment semantics and must not be performed opportunistically as part of unrelated work.
 
 #### E.7 `05_Tests/`
 
@@ -3004,15 +3030,15 @@ Routine PR history, normal Linear issue notes and temporary development output d
 
 #### E.10 `08_Deployment/`
 
-Contains deployment and rollback mechanics where required.
+Contains human-facing and operational deployment material.
 
 Examples include:
 
-- install/update helpers;
-- beta deployment helpers;
-- stable deployment helpers;
-- rollback tooling;
-- deployment manifests;
-- environment mappings.
+- installation and rollout runbooks;
+- cutover plans;
+- rollback procedures;
+- migration instructions;
+- environment-specific deployment guidance;
+- retained deployment or validation evidence.
 
-This folder must not contain duplicate authoritative source.
+Executable or machine-consumed build, packaging and release-generation machinery belongs under `04_Implementation/<target>/packaging/<mechanism>/**`, not here. This folder must not contain duplicate authoritative source.

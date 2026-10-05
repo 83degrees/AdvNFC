@@ -1,10 +1,10 @@
 # PROJECT_PROFILE: <Product name>
 
 **Template:** Project Profile
-**Version:** v1.3.0
+**Version:** v1.4.0
 **Status:** Approved
-**Approval tag:** `project-profile-template-v1.3.0`
-**Approval date:** 2026-10-03
+**Approval tag:** `project-profile-template-v1.4.0`
+**Approval date:** 2026-10-05
 
 This template is a centrally managed implementation aid for creating a conformant product `PROJECT_PROFILE.md`.
 
@@ -16,6 +16,7 @@ The required profile content is limited to the sections marked **Required**:
 product name, DDR origin code, default Linear team, purpose, scope, ownership/boundaries, approved architecture
 location, contracts provided, contracts consumed, product dependencies,
 implementation namespace/naming identity, and production/evidence route.
+Where the product has deployable content, the deployable-unit inventory is also required.
 
 Sections and fields marked **Optional/recommended** may be included when useful
 and may otherwise be omitted or left blank without making the profile
@@ -131,6 +132,16 @@ merely for consistency.
 Production evidence, Git state, and validation evidence are distinct. A push or
 repository state does not prove deployed runtime truth.
 
+## Required when applicable: Deployable units
+
+Include one row for every independently deployable unit. Omit this section only where the product has no deployable content.
+
+| Unit | Deployment type | Authoritative source | Target | Mechanism | Release/update route | Validation route | Rollback/recovery identity |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `<bounded unit>` | `<approved target_type>` | `<repository path>` | `<environment or target>` | `<approved mechanism or tbc>` | `<route or unresolved>` | `<checks/evidence route>` | `<prior known-good identity and recovery route>` |
+
+Use the classifications and canonical structure in `DEPLOYMENT_ARCHITECTURE_STANDARD.md`. A product may have more than one row and more than one mechanism. Do not infer a mechanism where the Standard records `tbc`. A separate deployment manifest is not required.
+
 ## Optional/recommended: Current and target state summary
 
 | Area | State | Statement | Authority/evidence |
@@ -141,7 +152,7 @@ repository state does not prove deployed runtime truth.
 
 Include this section when the product is installed or updated as a Home Assistant App through a Git custom repository. Omit it for other products.
 
-- App package path: `04_Source/<app>/`
+- App package path: `04_Implementation/haos/source/apps/<app>/` (or legacy `04_Source/<app>/` only while an explicit migration issue remains open)
 - App slug/identity: `<Home Assistant App slug>`
 - Repository manifest: `repository.yaml` at product root
 - Beta repository source: `https://github.com/<owner>/<repository>#beta`
