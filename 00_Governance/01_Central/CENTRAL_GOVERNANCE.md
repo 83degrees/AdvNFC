@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.9.0
+**Governance version:** 11.10.0
 **Status:** Approved
-**Approval tag:** `governance-v11.9.0`
-**Approval date:** 2026-10-05
+**Approval tag:** `governance-v11.10.0`
+**Approval date:** 2026-10-06
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -145,6 +145,7 @@ Its authoritative central artefacts include:
 - `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md`
 - `/Standards/Product/DDR_STANDARD.md`
 - `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
+- `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
@@ -201,6 +202,7 @@ The centrally governed standards are:
 | `ARCHITECTURE_DIAGRAM_STANDARD.md` | Product-applicable | `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md` | `00_Governance/01_Central/01_Standards/ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | `DDR_STANDARD.md` | Product-applicable | `/Standards/Product/DDR_STANDARD.md` | `00_Governance/01_Central/01_Standards/DDR_STANDARD.md` |
 | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
+| `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
 | `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
 | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
@@ -293,6 +295,7 @@ Different authoritative sources answer different questions.
 | Architecture diagram construction and shared presentation conventions | `ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | DDR construction, numbering, status and supersession specification | `DDR_STANDARD.md` |
 | Cross-product deployable-unit classification, source/packaging structure and deployment architecture | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
+| GitHub Pages publication, validation, recovery and evidence for governed static assets | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | App-repository deployment, publication, validation, data preservation and rollback for governed Home Assistant Apps | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
 | HACS deployment, Beta identity, stable release, validation and rollback for governed Home Assistant custom integrations | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | Production-evidence acquisition, freshness, retention, integrity and reuse practice | `PRODUCTION_EVIDENCE_STANDARD.md` |
@@ -2838,6 +2841,7 @@ The standard structure is:
 │   │   ├── ARCHITECTURE_DIAGRAM_STANDARD.md
 │   │   ├── DDR_STANDARD.md
 │   │   ├── DEPLOYMENT_ARCHITECTURE_STANDARD.md
+│   │   ├── GITHUB_PAGES_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
