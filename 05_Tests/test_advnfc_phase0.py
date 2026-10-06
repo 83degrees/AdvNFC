@@ -4,13 +4,15 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-AUTOMATIONS = ROOT / "04_Source/config/packages/advnfc/advnfc_automations.yaml"
-SCRIPTS = ROOT / "04_Source/config/packages/advnfc/advnfc_scripts.yaml"
-MAPPING = ROOT / "04_Source/config/AdvNFC/advnfc_tag_mapping.yaml"
-INTEGRATION = ROOT / "04_Source/config/custom_components/advnfc/__init__.py"
-SENSOR = ROOT / "04_Source/config/custom_components/advnfc/sensor.py"
-DEPLOYMENT = ROOT / "08_Deployment/ASTV-299_HOME_ASSISTANT_BETA_DEPLOYMENT.md"
-MANIFEST = ROOT / "04_Source/config/custom_components/advnfc/manifest.json"
+HA_CONFIG = ROOT / "04_Implementation" / "haos" / "source" / "config"
+AUTOMATIONS = HA_CONFIG / "packages" / "advnfc" / "advnfc_automations.yaml"
+SCRIPTS = HA_CONFIG / "packages" / "advnfc" / "advnfc_scripts.yaml"
+MAPPING = HA_CONFIG / "AdvNFC" / "advnfc_tag_mapping.yaml"
+INTEGRATION = ROOT / "custom_components" / "advnfc" / "__init__.py"
+SENSOR = ROOT / "custom_components" / "advnfc" / "sensor.py"
+DEPLOYMENT = ROOT / "08_Deployment" / "ADVNFC_HAOS_CONFIG_DEPLOYMENT_RUNBOOK.md"
+HACS_DEPLOYMENT = ROOT / "08_Deployment" / "ADVNFC_HACS_DEPLOYMENT_RUNBOOK.md"
+MANIFEST = ROOT / "custom_components" / "advnfc" / "manifest.json"
 
 
 def _text(path: Path) -> str:
@@ -68,7 +70,7 @@ def test_integration_activation_is_configuration_owned_not_script_owned():
     assert "advnfc" not in package
     deployment = _text(DEPLOYMENT)
     assert "/config/configuration.yaml" in deployment
-    assert "```yaml\nadvnfc:\n```" in deployment
+    assert "`advnfc:`" in deployment
 
 
 def test_capability_state_uses_registered_sensor_platform():
@@ -93,7 +95,7 @@ def test_capability_sensor_updates_after_successful_mapping_activation():
 def test_corrective_integration_has_distinct_patch_version():
     manifest = json.loads(_text(MANIFEST))
     assert manifest["version"] == "1.0.1"
-    assert "version is `1.0.1`" in _text(DEPLOYMENT)
+    assert "`1.0.1`" in _text(HACS_DEPLOYMENT)
 
 
 def test_tag_mapping_preserves_existing_phase_zero_records():

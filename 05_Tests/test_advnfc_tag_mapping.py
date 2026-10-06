@@ -5,7 +5,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-MAPPING_MODULE = ROOT / "04_Source/config/custom_components/advnfc/mapping.py"
+MAPPING_MODULE = ROOT / "custom_components" / "advnfc" / "mapping.py"
 SPEC = spec_from_file_location("advnfc_mapping", MAPPING_MODULE)
 assert SPEC is not None and SPEC.loader is not None
 mapping = module_from_spec(SPEC)
@@ -175,7 +175,7 @@ def test_failed_reload_retains_previous_active_snapshot(tmp_path: Path):
 
 def test_governed_mapping_contains_all_migrated_records():
     tags = _validate(
-        (ROOT / "04_Source/config/AdvNFC/advnfc_tag_mapping.yaml").read_text(
+        (ROOT / "04_Implementation/haos/source/config/AdvNFC/advnfc_tag_mapping.yaml").read_text(
             encoding="utf-8"
         )
     )

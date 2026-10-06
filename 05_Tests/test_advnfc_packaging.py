@@ -2,15 +2,17 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-READER_AGENT_PATH = ROOT / "04_Source" / "reader_agent" / "advnfc_reader_agent.sh"
+RPI_SOURCE = ROOT / "04_Implementation" / "rpi_os" / "source"
+READER_AGENT_PATH = RPI_SOURCE / "opt" / "advnfc" / "reader_agent" / "advnfc_reader_agent.sh"
 READER_AGENT = READER_AGENT_PATH.read_text()
-PACKAGING = ROOT / "04_Source" / "reader_agent" / "packaging"
+PACKAGING = ROOT / "04_Implementation" / "rpi_os" / "packaging" / "deb"
 BUILD = (PACKAGING / "build_deb.sh").read_text()
-CHECK_PATH = PACKAGING / "advnfc-reader-agent-check"
+CHECK_PATH = RPI_SOURCE / "usr" / "local" / "sbin" / "advnfc-reader-agent-check"
 CHECK = CHECK_PATH.read_text()
-INIT = (PACKAGING / "advnfc-reader-agent-init").read_text()
-PROFILE = (PACKAGING / "advnfc-profile").read_text()
-SERVICE = (ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agent.service").read_text()
+INIT = (RPI_SOURCE / "usr" / "local" / "sbin" / "advnfc-reader-agent-init").read_text()
+PROFILE = (RPI_SOURCE / "usr" / "local" / "sbin" / "advnfc-profile").read_text()
+SERVICE = (RPI_SOURCE / "lib" / "systemd" / "system" / "advnfc-reader-agent.service").read_text()
+UDEV_RULE = (RPI_SOURCE / "lib" / "udev" / "rules.d" / "99-advnfc-acr122u.rules").read_text()
 
 
 def test_package_is_architecture_independent():
@@ -50,10 +52,15 @@ def test_package_creates_dedicated_runtime_account():
 def test_package_installs_late_final_acr122u_access_rule():
     assert "99-advnfc-acr122u.rules" in BUILD
     assert "70-advnfc-acr122u.rules" not in BUILD
-    assert 'ATTR{idVendor}=="072f"' in BUILD
-    assert 'ATTR{idProduct}=="2200"' in BUILD
-    assert 'MODE:="0660"' in BUILD
-    assert 'GROUP:="advnfc"' in BUILD
+    assert 'ATTR{idVendor}=="072f"' in UDEV_RULE
+    assert 'ATTR{idProduct}=="2200"' in UDEV_RULE
+    assert 'MODE:="0660"' in UDEV_RULE
+    assert 'GROUP:="advnfc"' in UDEV_RULE
+
+
+def test_build_fails_closed_without_exact_source_identity_and_writes_digest():
+    assert "40-character commit" in BUILD
+    assert 'sha256sum "$OUT" >"$OUT.sha256"' in BUILD
 
 
 def test_readiness_check_validates_profile_and_reader_stack():
@@ -131,3 +138,7 @@ def test_reader_agent_preserves_complete_nfcid1():
         check=True,
     )
     assert result.stdout == "04FD2637C82A81"
+
+
+def test_legacy_source_tree_is_removed():
+    assert not (ROOT / "04_Source").exists()

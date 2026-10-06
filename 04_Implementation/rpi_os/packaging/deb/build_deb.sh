@@ -6,17 +6,22 @@ if [[ -z "$VERSION" ]]; then
   echo "Usage: $0 <version> [output-directory]" >&2
   exit 2
 fi
-if [[ ! "$VERSION" =~ ^[0-9]+.[0-9]+.[0-9]+([+~.-][A-Za-z0-9.+~-]+)?$ ]]; then
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+~.-][A-Za-z0-9.+~-]+)?$ ]]; then
   echo "Invalid Debian/package version: $VERSION" >&2
   exit 2
 fi
 
 OUT_DIR="${2:-dist}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-READER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$READER_DIR/../.." && pwd)"
+RPI_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SOURCE_ROOT="$RPI_ROOT/source"
+REPO_ROOT="$(cd "$RPI_ROOT/../.." && pwd)"
 ARCH="all"
-GIT_SHA="${SOURCE_GIT_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)}"
+GIT_SHA="${SOURCE_GIT_SHA:-$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)}"
+if [[ ! "$GIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "SOURCE_GIT_SHA or repository HEAD must identify an exact 40-character commit" >&2
+  exit 2
+fi
 PKG="advnfc-reader-agent"
 WORK="$(mktemp -d)"
 ROOT="$WORK/root"
@@ -24,26 +29,20 @@ trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p   "$ROOT/DEBIAN"   "$ROOT/opt/advnfc/reader_agent"   "$ROOT/lib/systemd/system"   "$ROOT/lib/udev/rules.d"   "$ROOT/usr/local/sbin"   "$ROOT/usr/share/advnfc/profiles"   "$ROOT/usr/share/advnfc/secrets"
 
-install -m 0755 "$READER_DIR/advnfc_reader_agent.sh"   "$ROOT/opt/advnfc/reader_agent/advnfc_reader_agent.sh"
-install -m 0644 "$READER_DIR/systemd/advnfc-reader-agent.service"   "$ROOT/lib/systemd/system/advnfc-reader-agent.service"
-install -m 0755 "$SCRIPT_DIR/advnfc-reader-agent-check"   "$ROOT/usr/local/sbin/advnfc-reader-agent-check"
-install -m 0755 "$SCRIPT_DIR/advnfc-reader-agent-init"   "$ROOT/usr/local/sbin/advnfc-reader-agent-init"
-install -m 0755 "$SCRIPT_DIR/advnfc-profile"   "$ROOT/usr/local/sbin/advnfc-profile"
-install -m 0644 "$READER_DIR/profiles/"*.yaml   "$ROOT/usr/share/advnfc/profiles/"
-install -m 0640 "$READER_DIR/secrets/"*.env.example   "$ROOT/usr/share/advnfc/secrets/"
+install -m 0755 "$SOURCE_ROOT/opt/advnfc/reader_agent/advnfc_reader_agent.sh"   "$ROOT/opt/advnfc/reader_agent/advnfc_reader_agent.sh"
+install -m 0644 "$SOURCE_ROOT/lib/systemd/system/advnfc-reader-agent.service"   "$ROOT/lib/systemd/system/advnfc-reader-agent.service"
+install -m 0644 "$SOURCE_ROOT/lib/udev/rules.d/99-advnfc-acr122u.rules"   "$ROOT/lib/udev/rules.d/99-advnfc-acr122u.rules"
+install -m 0755 "$SOURCE_ROOT/usr/local/sbin/advnfc-reader-agent-check"   "$ROOT/usr/local/sbin/advnfc-reader-agent-check"
+install -m 0755 "$SOURCE_ROOT/usr/local/sbin/advnfc-reader-agent-init"   "$ROOT/usr/local/sbin/advnfc-reader-agent-init"
+install -m 0755 "$SOURCE_ROOT/usr/local/sbin/advnfc-profile"   "$ROOT/usr/local/sbin/advnfc-profile"
+install -m 0644 "$SOURCE_ROOT/usr/share/advnfc/profiles/"*.yaml   "$ROOT/usr/share/advnfc/profiles/"
+install -m 0640 "$SOURCE_ROOT/usr/share/advnfc/secrets/"*.env.example   "$ROOT/usr/share/advnfc/secrets/"
 
 cat >"$ROOT/opt/advnfc/reader_agent/VERSION" <<EOF
 version=$VERSION
 git_sha=$GIT_SHA
 EOF
 chmod 0644 "$ROOT/opt/advnfc/reader_agent/VERSION"
-
-# Run after the distro/libnfc 93-pn53x.rules entry for the same ACR122U and
-# make the AdvNFC ownership assignment final so the service account does not
-# depend on membership of the host-specific plugdev group.
-cat >"$ROOT/lib/udev/rules.d/99-advnfc-acr122u.rules" <<'EOF'
-SUBSYSTEM=="usb", ATTR{idVendor}=="072f", ATTR{idProduct}=="2200", MODE:="0660", GROUP:="advnfc"
-EOF
 
 cat >"$ROOT/DEBIAN/control" <<EOF
 Package: $PKG
@@ -108,4 +107,5 @@ chmod 0755 "$ROOT/DEBIAN/postrm"
 mkdir -p "$OUT_DIR"
 OUT="$OUT_DIR/${PKG}_${VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "$ROOT" "$OUT"
+sha256sum "$OUT" >"$OUT.sha256"
 echo "$OUT"
