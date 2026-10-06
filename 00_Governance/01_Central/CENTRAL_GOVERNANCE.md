@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.12.0
+**Governance version:** 11.13.0
 **Status:** Approved
-**Approval tag:** `governance-v11.12.0`
+**Approval tag:** `governance-v11.13.0`
 **Approval date:** 2026-10-06
 
 **Authority of appendices:**  
@@ -508,6 +508,21 @@ If an accidental capture contains secret material, it must not be committed or r
 Create a safe replacement capture rather than editing the unsafe capture into an apparently original state.
 
 The immutability requirement for retained evidence applies once evidence has been accepted for retention; it does not require preservation of an unsafe accidental capture.
+
+#### 3.4 Implementation and Deployment-Method Index
+
+Each governed deployable unit must use the approved deployment mechanism and dedicated mechanism-specific deployment Standard identified by this index. Every approved deployment mechanism has exactly one dedicated deployment Standard; this index routes to that authority and does not duplicate its detailed procedure.
+
+| Deployable-unit type | Approved deployment mechanism | Deployment Standard |
+|---|---|---|
+| `haos_integration` | `hacs` | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
+| `haos_app` | `app_repository` | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
+| `haos_config` | `operator_selected` | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
+| `haos_managed_data` | `tbc` | — until mechanism approved |
+| `static_asset` | `github_pages` | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
+| `rpi_os_software` | `deb` | `DEB_DEPLOYMENT_STANDARD.md` |
+
+Where a mechanism remains `tbc`, no deployment Standard is required until the mechanism is selected and approved. Where this index names a required target Standard that is not yet approved and distributed, governed use of that deployment mechanism continues under existing approved authority until the named Standard becomes effective.
 
 ---
 
