@@ -3,7 +3,8 @@ name: Reader Agent Package
 on:
   pull_request:
     paths:
-      - "04_Source/reader_agent/**"
+      - "04_Implementation/rpi_os/source/**"
+      - "04_Implementation/rpi_os/packaging/deb/**"
       - "05_Tests/test_advnfc_packaging.py"
       - ".github/workflows/reader-agent-package.yml"
   workflow_dispatch:
@@ -50,11 +51,11 @@ jobs:
       - name: Validate shell syntax
         shell: bash
         run: |
-          bash -n 04_Source/reader_agent/advnfc_reader_agent.sh
-          bash -n 04_Source/reader_agent/packaging/build_deb.sh
-          bash -n 04_Source/reader_agent/packaging/advnfc-reader-agent-check
-          bash -n 04_Source/reader_agent/packaging/advnfc-reader-agent-init
-          python -m py_compile 04_Source/reader_agent/packaging/advnfc-profile
+          bash -n 04_Implementation/rpi_os/source/opt/advnfc/reader_agent/advnfc_reader_agent.sh
+          bash -n 04_Implementation/rpi_os/packaging/deb/build_deb.sh
+          bash -n 04_Implementation/rpi_os/source/usr/local/sbin/advnfc-reader-agent-check
+          bash -n 04_Implementation/rpi_os/source/usr/local/sbin/advnfc-reader-agent-init
+          python -m py_compile 04_Implementation/rpi_os/source/usr/local/sbin/advnfc-profile
 
       - name: Run reader packaging tests
         run: python -m pytest -q 05_Tests/test_advnfc_packaging.py 05_Tests/test_advnfc_reader_agent.py 05_Tests/test_advnfc_profiles.py
@@ -62,19 +63,22 @@ jobs:
       - name: Build Debian package
         shell: bash
         run: |
-          bash 04_Source/reader_agent/packaging/build_deb.sh "${{ steps.version.outputs.version }}"
+          bash 04_Implementation/rpi_os/packaging/deb/build_deb.sh "${{ steps.version.outputs.version }}"
 
       - name: Inspect Debian package
         shell: bash
         run: |
           dpkg-deb --info dist/*.deb
           dpkg-deb --contents dist/*.deb
+          sha256sum --check dist/*.deb.sha256
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: advnfc-reader-agent-${{ steps.version.outputs.version }}
-          path: dist/*.deb
+          path: |
+            dist/*.deb
+            dist/*.deb.sha256
           if-no-files-found: error
 
   release:
@@ -100,4 +104,4 @@ jobs:
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
           fi
-          gh release upload "$GITHUB_REF_NAME" dist/*.deb --clobber
+          gh release upload "$GITHUB_REF_NAME" dist/*.deb dist/*.deb.sha256 --clobber

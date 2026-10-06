@@ -110,7 +110,37 @@ Current Home Assistant implementation identities are:
 - `advnfc_tag_mapping.yaml`
 - `packages/advnfc`
 
-These names are the active AdvNFC Home Assistant identities following the accepted production cutover. The governed reader-agent source additionally uses `04_Source/reader_agent/`, and `advnfc-reader-agent.service` is deployed and active on `pi-nfc-02`; the legacy `assistive-card-listener.service` is retired and non-authoritative.
+These names are the active AdvNFC Home Assistant identities following the accepted production cutover. The governed reader-agent package installs `advnfc-reader-agent.service`, which is deployed and active on `pi-nfc-02`; the legacy `assistive-card-listener.service` is retired and non-authoritative.
+
+## Deployable units
+
+| Deployable unit | Type | Authoritative source | Target | Mechanism | Detailed authority and runbook |
+| --- | --- | --- | --- | --- | --- |
+| AdvNFC Home Assistant custom integration | `haos_integration` | `custom_components/advnfc/**` | Home Assistant `/config/custom_components/advnfc/**` | `hacs` | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` and `08_Deployment/ADVNFC_HACS_DEPLOYMENT_RUNBOOK.md` |
+| AdvNFC Home Assistant configuration | `haos_config` | `04_Implementation/haos/source/config/**` | `ha-starburst` Home Assistant `/config/**` | `operator_selected` | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` and `08_Deployment/ADVNFC_HAOS_CONFIG_DEPLOYMENT_RUNBOOK.md` |
+| AdvNFC Raspberry Pi reader agent | `rpi_os_software` | `04_Implementation/rpi_os/source/**` | Raspberry Pi OS package-owned filesystem paths | `deb` via versioned GitHub Release artefact | `DEB_DEPLOYMENT_STANDARD.md` and `08_Deployment/ADVNFC_READER_AGENT_DEB_DEPLOYMENT_RUNBOOK.md` |
+
+The HACS integration uses the approved root-source exception. The pointer at
+`04_Implementation/haos/source/config/custom_components/advnfc/README.md`
+keeps the canonical deployment map navigable without duplicating integration
+source. Root `hacs.json` and `.github/workflows/hacs-release.yml` are thin,
+platform-required entrypoints; project-controlled HACS release machinery is at
+`04_Implementation/haos/packaging/hacs/**`.
+
+The Home Assistant configuration unit includes the AdvNFC package files and
+tag mapping. Its required top-level `advnfc:` activation in
+`/config/configuration.yaml` remains an operator-managed target step; the
+repository does not introduce a different runtime configuration model.
+
+The Debian binary package and source package are both named
+`advnfc-reader-agent`, currently `Architecture: all`, and target Raspberry Pi
+OS/Debian systems using systemd with the declared runtime dependencies. The
+initial approved distribution route is an exact versioned `.deb` and SHA-256
+digest attached to a `reader-agent-v<version>` GitHub Release. Package-owned
+payload mirrors installed paths beneath `04_Implementation/rpi_os/source/**`;
+build and generated package-metadata logic is under
+`04_Implementation/rpi_os/packaging/deb/**`. Profiles, selectors, credentials,
+and other node-local `/etc/advnfc/**` state remain external to package ownership.
 
 ## Production and evidence route
 
@@ -122,18 +152,22 @@ These names are the active AdvNFC Home Assistant identities following the accept
 
 ## Repository source baseline
 
-ASTV-242 establishes the candidate AdvNFC runtime source baseline under:
+The authoritative Home Assistant integration source is only
+`custom_components/advnfc/**`; its manifest remains version `1.0.1`.
 
-- `04_Source/config/packages/advnfc/advnfc_automations.yaml`
-- `04_Source/config/packages/advnfc/advnfc_scripts.yaml`
-- `04_Source/config/AdvNFC/advnfc_tag_mapping.yaml`
+The authoritative operator-selected Home Assistant configuration baseline is:
 
-These files are the accepted AdvNFC Home Assistant source baseline following production cutover.
+- `04_Implementation/haos/source/config/packages/advnfc/advnfc_automations.yaml`
+- `04_Implementation/haos/source/config/packages/advnfc/advnfc_scripts.yaml`
+- `04_Implementation/haos/source/config/AdvNFC/advnfc_tag_mapping.yaml`
 
-ASTV-247 additionally establishes the Raspberry Pi reader-agent source baseline under:
+The authoritative reader-agent package payload mirrors its target filesystem
+beneath `04_Implementation/rpi_os/source/**`, including `/opt/advnfc/**`,
+`/lib/systemd/system/**`, `/lib/udev/rules.d/**`, `/usr/local/sbin/**`, and
+`/usr/share/advnfc/**`. Debian build and package metadata generation are owned
+by `04_Implementation/rpi_os/packaging/deb/build_deb.sh`.
 
-- `04_Source/reader_agent/advnfc_reader_agent.sh`
-- `04_Source/reader_agent/systemd/advnfc-reader-agent.service`
-- `04_Source/reader_agent/reader-agent.env.example`
-
-The reader-agent source preserves the captured `pi-nfc-02` behavior while moving secrets outside source control. ASTV-249 established its governed production deployment on `pi-nfc-02`.
+These structural locations preserve the accepted Home Assistant and reader
+runtime behaviour. ASTV-249 established the governed production reader-agent
+deployment on `pi-nfc-02`; this repository migration does not deploy or alter
+that running service.

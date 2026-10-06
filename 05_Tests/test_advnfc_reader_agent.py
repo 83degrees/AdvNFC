@@ -1,9 +1,10 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "04_Source" / "reader_agent" / "advnfc_reader_agent.sh"
-SERVICE = ROOT / "04_Source" / "reader_agent" / "systemd" / "advnfc-reader-agent.service"
-PROFILE_TOOL = ROOT / "04_Source" / "reader_agent" / "packaging" / "advnfc-profile"
+SOURCE = ROOT / "04_Implementation" / "rpi_os" / "source"
+SCRIPT = SOURCE / "opt" / "advnfc" / "reader_agent" / "advnfc_reader_agent.sh"
+SERVICE = SOURCE / "lib" / "systemd" / "system" / "advnfc-reader-agent.service"
+PROFILE_TOOL = SOURCE / "usr" / "local" / "sbin" / "advnfc-profile"
 
 script = SCRIPT.read_text()
 service = SERVICE.read_text()
