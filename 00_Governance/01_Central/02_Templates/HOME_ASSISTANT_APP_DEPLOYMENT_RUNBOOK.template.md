@@ -1,12 +1,12 @@
 # Home Assistant App Custom-Repository Deployment Runbook: <Product>
 
 **Template:** Home Assistant App Deployment Runbook
-**Version:** v1.1.0
+**Version:** v1.1.1
 **Status:** Approved
-**Approval tag:** `home-assistant-app-deployment-runbook-template-v1.1.0`
+**Approval tag:** `home-assistant-app-deployment-runbook-template-v1.1.1`
 **Approval date:** 2026-10-05
 
-This centrally managed template is an implementation aid for governed Home Assistant App install, update and rollback through a Git custom repository. Central Governance Section 18.8 is authoritative. This runbook does not grant publication, deployment, rollback or promotion authority.
+This centrally managed template is an implementation aid for governed Home Assistant App install, update and rollback through a Git custom repository. `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md`, as required by Central Governance Section 18.8, is the detailed authority. This runbook does not grant publication, deployment, rollback or promotion authority.
 
 ## 1. Operation identity
 

@@ -1,9 +1,9 @@
 # DEPLOYMENT_ARCHITECTURE_STANDARD.md
 
 **Standard:** Deployment Architecture Standard
-**Version:** v1.0.0
+**Version:** v1.0.1
 **Status:** Approved
-**Approval tag:** `deployment-architecture-standard-v1.0.0`
+**Approval tag:** `deployment-architecture-standard-v1.0.1`
 **Approval date:** 2026-10-05
 
 ## 1. Purpose, Scope and Authority
@@ -53,7 +53,7 @@ The current governed mapping is:
 | Deployment type | Approved mechanism | Detailed authority |
 |---|---|---|
 | `haos_integration` | `hacs` | Dedicated HACS deployment Standard when approved |
-| `haos_app` | `app_repository` | `CENTRAL_GOVERNANCE.md` Section 18.8 until the dedicated App deployment Standard is approved |
+| `haos_app` | `app_repository` | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
 | `haos_config` | `tbc` | No approved general mechanism |
 | `haos_managed_data` | `tbc` | No approved general mechanism |
 | `static_asset` | `github_pages` | Dedicated mechanism Standard when approved |
