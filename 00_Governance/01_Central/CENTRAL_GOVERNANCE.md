@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.11.0
+**Governance version:** 11.12.0
 **Status:** Approved
-**Approval tag:** `governance-v11.11.0`
+**Approval tag:** `governance-v11.12.0`
 **Approval date:** 2026-10-06
 
 **Authority of appendices:**  
@@ -148,8 +148,9 @@ Its authoritative central artefacts include:
 - `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
 - `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md`
-- `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
+- `/Standards/Product/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
+- `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
 - `/Templates/PROJECT_PROFILE.template.md`
@@ -206,8 +207,9 @@ The centrally governed standards are:
 | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
-| `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
+| `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
 | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
+| `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
 | `GOVERNANCE_LIFECYCLE_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md` | — |
 | `GOVERNANCE_DISTRIBUTION_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md` | — |
 
@@ -300,6 +302,7 @@ Different authoritative sources answer different questions.
 | Cross-product deployable-unit classification, source/packaging structure and deployment architecture | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | GitHub Pages publication, validation, recovery and evidence for governed static assets | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | App-repository deployment, publication, validation, data preservation and rollback for governed Home Assistant Apps | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
+| Operator-managed transfer, validation, evidence and rollback for governed Home Assistant configuration | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
 | HACS deployment, Beta identity, stable release, validation and rollback for governed Home Assistant custom integrations | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | Production-evidence acquisition, freshness, retention, integrity and reuse practice | `PRODUCTION_EVIDENCE_STANDARD.md` |
 | Central Governance release/provenance lifecycle mechanics | `GOVERNANCE_LIFECYCLE_STANDARD.md` |
@@ -2847,6 +2850,7 @@ The standard structure is:
 │   │   ├── DEPLOYMENT_ARCHITECTURE_STANDARD.md
 │   │   ├── GITHUB_PAGES_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md
+│   │   ├── HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md
 │   │   └── PRODUCTION_EVIDENCE_STANDARD.md
 │   ├── 02_Templates/
