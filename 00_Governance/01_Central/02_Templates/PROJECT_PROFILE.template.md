@@ -1,9 +1,9 @@
 # PROJECT_PROFILE: <Product name>
 
 **Template:** Project Profile
-**Version:** v1.4.0
+**Version:** v1.4.1
 **Status:** Approved
-**Approval tag:** `project-profile-template-v1.4.0`
+**Approval tag:** `project-profile-template-v1.4.1`
 **Approval date:** 2026-10-05
 
 This template is a centrally managed implementation aid for creating a conformant product `PROJECT_PROFILE.md`.
@@ -164,7 +164,7 @@ Include this section when the product is installed or updated as a Home Assistan
 - Deployment evidence route: `<Linear issue and supporting environment evidence>`
 - Prior working candidate / rollback route: `<how identified and restored>`
 
-Do not record credentials in the profile. A temporary-public model must acknowledge that publication cannot be retracted from third-party copies or caches and that every install/update window requires fresh explicit authority under Central Governance Section 18.8.
+Do not record credentials in the profile. A temporary-public model must acknowledge that publication cannot be retracted from third-party copies or caches and that every install/update window requires fresh explicit authority under `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md`, as required by Central Governance Section 18.8.
 
 ## Optional/recommended: Governance and work control
 
