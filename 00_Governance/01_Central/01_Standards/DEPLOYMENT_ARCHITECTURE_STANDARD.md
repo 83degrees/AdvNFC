@@ -1,10 +1,10 @@
 # DEPLOYMENT_ARCHITECTURE_STANDARD.md
 
 **Standard:** Deployment Architecture Standard
-**Version:** v1.0.1
+**Version:** v1.1.0
 **Status:** Approved
-**Approval tag:** `deployment-architecture-standard-v1.0.1`
-**Approval date:** 2026-10-05
+**Approval tag:** `deployment-architecture-standard-v1.1.0`
+**Approval date:** 2026-10-06
 
 ## 1. Purpose, Scope and Authority
 
@@ -54,12 +54,34 @@ The current governed mapping is:
 |---|---|---|
 | `haos_integration` | `hacs` | Dedicated HACS deployment Standard when approved |
 | `haos_app` | `app_repository` | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
-| `haos_config` | `tbc` | No approved general mechanism |
+| `haos_config` | `operator_selected` | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
 | `haos_managed_data` | `tbc` | No approved general mechanism |
 | `static_asset` | `github_pages` | Dedicated mechanism Standard when approved |
 | `rpi_os_software` | `deb` | Dedicated Debian deployment Standard when approved |
 
 `tbc` is an explicit unresolved state. It must remain `tbc` until a mechanism has been designed, evidenced and approved through governed work. Relationship, convenience or an existing ad hoc copy route must not be used to infer a general mechanism. In particular, no generic HAOS managed-data synchronization mechanism is approved by this Standard.
+
+### 3.1 Operator-Selected HAOS Configuration Deployment
+
+`operator_selected` is the approved temporary mechanism for `haos_config`. It means that deployment is operator-managed and the authorised user or operator selects a practical transport for each deployment. The transport is not separately standardised and may include SMB copy, a file editor, SCP/SFTP, direct file upload, another manual route or future tooling.
+
+The dedicated Product-applicable authority for this mechanism is `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md`. Until that Standard is approved and distributed, this mapping identifies the required target authority but does not by itself authorise governed use without the other currently applicable approved authority.
+
+The dedicated Standard must remain transport-neutral and require only the controls needed to make operator-selected deployment governable. Those controls must cover:
+
+- explicit deployment authority;
+- exact governed candidate or source identity where available;
+- deterministic source and target path identification;
+- transfer without intentional editing or reformatting of the governed payload;
+- capture or confirmation of the immediate prior target state sufficient for rollback;
+- Home Assistant configuration validation before Beta acceptance;
+- recording of the target instance, target path, transport used and validation result;
+- fail-closed handling where the transferred payload or resulting configuration cannot be established sufficiently for the governed change; and
+- rollback using the recorded prior state where required.
+
+The mechanism does not require Windows, SMB, Git on HAOS, a Home Assistant App, a GitHub Action, an agent-accessible Home Assistant endpoint or any other single transfer protocol. Evidence must reflect the transport actually used: an operator-managed or manual copy must not be represented as independently proving Git commit identity where it does not.
+
+This temporary choice accepts operator-dependent evidence and execution in exchange for avoiding disproportionate automation design before it is needed. A future governed mechanism may introduce stronger automation without changing the `haos_config` deployment type.
 
 ## 4. Canonical Implementation Structure
 
@@ -200,6 +222,6 @@ Migration must not be performed opportunistically and must not become an uncontr
 
 ## 12. Deferred Mechanism Design
 
-Detailed HACS, Home Assistant App, HAOS configuration, HAOS managed-data, GitHub Pages and Debian procedures belong in their mechanism-specific governed work and Standards.
+Detailed HACS, Home Assistant App, operator-selected HAOS configuration, HAOS managed-data, GitHub Pages and Debian procedures belong in their mechanism-specific governed work and Standards.
 
 This Standard supplies the shared architecture and classification model only. A mechanism-specific Standard may refine procedures for its mechanism but must not contradict this Standard or `CENTRAL_GOVERNANCE.md`.
