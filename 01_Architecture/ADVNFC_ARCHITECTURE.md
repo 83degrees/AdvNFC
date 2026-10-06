@@ -81,18 +81,21 @@ The package owns:
 
 - `/opt/advnfc/reader_agent/advnfc_reader_agent.sh`;
 - `/opt/advnfc/reader_agent/VERSION`;
-- `advnfc-reader-agent.service`;
-- the ACR122U udev access rule;
-- the `advnfc-reader-agent-check` readiness command;
-- the `advnfc-reader-agent-init` configuration initializer;
-- a non-secret example environment file.
+- `/lib/systemd/system/advnfc-reader-agent.service`;
+- `/lib/udev/rules.d/99-advnfc-acr122u.rules`;
+- `/usr/local/sbin/advnfc-reader-agent-check`;
+- `/usr/local/sbin/advnfc-reader-agent-init`;
+- `/usr/local/sbin/advnfc-profile`; and
+- non-secret profile and credential-placeholder examples beneath
+  `/usr/share/advnfc/`.
 
 Node-local state is outside package ownership:
 
-- `/etc/advnfc/reader-agent.env`;
-- MQTT credentials;
-- node-specific broker values;
-- any future selected runtime profile or local overrides.
+- `/etc/advnfc/profiles/**`;
+- `/etc/advnfc/secrets/**`;
+- `/etc/advnfc/active-profile.yaml`;
+- MQTT credentials and node-specific broker values; and
+- any local overrides.
 
 Package installation and upgrade must not overwrite node-local configuration or secrets.
 
@@ -116,6 +119,24 @@ The installed software identity is recorded in `/opt/advnfc/reader_agent/VERSION
 Rollback uses a previously retained governed `.deb` artefact installed explicitly with package-manager downgrade support. Uninstall removes governed software/service ownership while deliberately preserving `/etc/advnfc/`.
 
 This packaging model does not alter MQTT topic/payload semantics, tag meaning, or the downstream AdvNFC/ASTV boundary. Those remain governed independently.
+
+### Authoritative source and deployment routes
+
+The Home Assistant integration is distributed through HACS from the sole
+authoritative root source `custom_components/advnfc/**`. The canonical
+`04_Implementation/haos/source/config/custom_components/advnfc/README.md`
+path is a non-duplicating deployment-map pointer.
+
+The Home Assistant automations, scripts, and mapping remain a separate
+operator-selected configuration unit beneath
+`04_Implementation/haos/source/config/**`. The integration's required
+top-level `advnfc:` activation remains an operator-managed entry in target
+`/config/configuration.yaml`.
+
+Reader-agent package-owned payload mirrors installed filesystem paths beneath
+`04_Implementation/rpi_os/source/**`. Debian build and package-metadata
+machinery is under `04_Implementation/rpi_os/packaging/deb/**`. Node-local
+`/etc/advnfc/**` state is intentionally outside package source and ownership.
 
 ## NFC Entry and Tag-to-Intent Resolution
 

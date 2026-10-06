@@ -5,9 +5,10 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOL = ROOT / "04_Source" / "reader_agent" / "packaging" / "advnfc-profile"
-STAR = ROOT / "04_Source" / "reader_agent" / "profiles" / "starburst.yaml"
-TEST = ROOT / "04_Source" / "reader_agent" / "profiles" / "test.yaml"
+SOURCE = ROOT / "04_Implementation" / "rpi_os" / "source"
+TOOL = SOURCE / "usr" / "local" / "sbin" / "advnfc-profile"
+STAR = SOURCE / "usr" / "share" / "advnfc" / "profiles" / "starburst.yaml"
+TEST = SOURCE / "usr" / "share" / "advnfc" / "profiles" / "test.yaml"
 
 
 def test_two_distinct_schema_v1_profiles_exist():

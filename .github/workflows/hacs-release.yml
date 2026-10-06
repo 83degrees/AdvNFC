@@ -1,0 +1,52 @@
+name: AdvNFC HACS stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      stable_sha:
+        description: Exact selected integrated stable release SHA
+        required: true
+        type: string
+      beta_tag:
+        description: Immutable Beta tag accepted for promotion
+        required: true
+        type: string
+      promotion_evidence:
+        description: Required evidence reference when stable and Beta SHAs differ
+        required: false
+        type: string
+      authority_confirmed:
+        description: Confirm explicit stable-promotion authority exists
+        required: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed without stable-promotion authority
+        env:
+          AUTHORITY_CONFIRMED: ${{ inputs.authority_confirmed }}
+        run: test "$AUTHORITY_CONFIRMED" = "true"
+
+      - name: Check out selected stable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.stable_sha }}
+          fetch-depth: 0
+
+      - name: Create validated HACS stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_SHA: ${{ inputs.stable_sha }}
+          BETA_TAG: ${{ inputs.beta_tag }}
+          PROMOTION_EVIDENCE: ${{ inputs.promotion_evidence }}
+        run: >-
+          python 04_Implementation/haos/packaging/hacs/hacs_release.py
+          --root . release
+          --stable-sha "$STABLE_SHA"
+          --beta-tag "$BETA_TAG"
+          --promotion-evidence "$PROMOTION_EVIDENCE"
