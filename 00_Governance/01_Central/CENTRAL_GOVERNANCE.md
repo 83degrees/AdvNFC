@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.10.0
+**Governance version:** 11.11.0
 **Status:** Approved
-**Approval tag:** `governance-v11.10.0`
+**Approval tag:** `governance-v11.11.0`
 **Approval date:** 2026-10-06
 
 **Authority of appendices:**  
@@ -144,6 +144,7 @@ Its authoritative central artefacts include:
 - `/CENTRAL_GOVERNANCE.md`
 - `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md`
 - `/Standards/Product/DDR_STANDARD.md`
+- `/Standards/Product/DEB_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md`
 - `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md`
@@ -201,6 +202,7 @@ The centrally governed standards are:
 |---|---|---|---|
 | `ARCHITECTURE_DIAGRAM_STANDARD.md` | Product-applicable | `/Standards/Product/ARCHITECTURE_DIAGRAM_STANDARD.md` | `00_Governance/01_Central/01_Standards/ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | `DDR_STANDARD.md` | Product-applicable | `/Standards/Product/DDR_STANDARD.md` | `00_Governance/01_Central/01_Standards/DDR_STANDARD.md` |
+| `DEB_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/DEB_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEB_DEPLOYMENT_STANDARD.md` |
 | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` | Product-applicable | `/Standards/Product/DEPLOYMENT_ARCHITECTURE_STANDARD.md` | `00_Governance/01_Central/01_Standards/DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
@@ -294,6 +296,7 @@ Different authoritative sources answer different questions.
 | Approved product architecture | Approved `*_ARCHITECTURE.md` |
 | Architecture diagram construction and shared presentation conventions | `ARCHITECTURE_DIAGRAM_STANDARD.md` |
 | DDR construction, numbering, status and supersession specification | `DDR_STANDARD.md` |
+| Debian package build, release, installation, upgrade, rollback and evidence | `DEB_DEPLOYMENT_STANDARD.md` |
 | Cross-product deployable-unit classification, source/packaging structure and deployment architecture | `DEPLOYMENT_ARCHITECTURE_STANDARD.md` |
 | GitHub Pages publication, validation, recovery and evidence for governed static assets | `GITHUB_PAGES_DEPLOYMENT_STANDARD.md` |
 | App-repository deployment, publication, validation, data preservation and rollback for governed Home Assistant Apps | `HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md` |
@@ -2840,6 +2843,7 @@ The standard structure is:
 │   ├── 01_Standards/
 │   │   ├── ARCHITECTURE_DIAGRAM_STANDARD.md
 │   │   ├── DDR_STANDARD.md
+│   │   ├── DEB_DEPLOYMENT_STANDARD.md
 │   │   ├── DEPLOYMENT_ARCHITECTURE_STANDARD.md
 │   │   ├── GITHUB_PAGES_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md
