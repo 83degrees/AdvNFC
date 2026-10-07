@@ -27,6 +27,11 @@ SERVICE_GET_ADMINISTRATION_CAPABILITIES = "get_administration_capabilities"
 SERVICE_LIST_TAG_MAPPINGS = "list_tag_mappings"
 SERVICE_GET_TAG_MAPPING = "get_tag_mapping"
 SERVICE_QUERY_TAG_MAPPINGS = "query_tag_mappings"
+SERVICE_VALIDATE_TAG_MAPPING = "validate_tag_mapping"
+SERVICE_VALIDATE_TAG_MAPPING_RECORD = "validate_tag_mapping_record"
+SERVICE_CREATE_TAG_MAPPING = "create_tag_mapping"
+SERVICE_UPDATE_TAG_MAPPING = "update_tag_mapping"
+SERVICE_DELETE_TAG_MAPPING = "delete_tag_mapping"
 DATA_STORE = "tag_mapping_store"
 SIGNAL_TAG_MAPPING_UPDATED = "advnfc_tag_mapping_updated"
 
@@ -52,6 +57,7 @@ async def _async_reload(hass: HomeAssistant, store: TagMappingStore) -> ServiceR
     return {
         "schema_version": snapshot.schema_version,
         "mapping_count": snapshot.count,
+        "revision": snapshot.revision,
     }
 
 
@@ -80,6 +86,52 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             call.data.get("action_type", ""),
             call.data.get("intent_id", ""),
         )
+
+    def area_ids() -> set[str]:
+        return {area.id for area in ar.async_get(hass).async_list_areas()}
+
+    async def validate_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        areas = area_ids()
+        return await hass.async_add_executor_job(
+            store.administration_validate_document,
+            call.data.get("candidate", {}),
+            areas.__contains__,
+        )
+
+    async def validate_tag_mapping_record(call: ServiceCall) -> ServiceResponse:
+        areas = area_ids()
+        return await hass.async_add_executor_job(
+            store.administration_validate_record,
+            call.data.get("mapping", {}),
+            areas.__contains__,
+        )
+
+    async def mutate_tag_mapping(
+        call: ServiceCall, operation: str
+    ) -> ServiceResponse:
+        areas = area_ids()
+        method = getattr(store, f"administration_{operation}")
+        value = (
+            call.data.get("uid", "")
+            if operation == "delete"
+            else call.data.get("mapping", {})
+        )
+        return await hass.async_add_executor_job(
+            method,
+            _mapping_path(hass),
+            call.data.get("expected_revision", ""),
+            value,
+            areas.__contains__,
+        )
+
+    async def create_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        return await mutate_tag_mapping(call, "create")
+
+    async def update_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        return await mutate_tag_mapping(call, "update")
+
+    async def delete_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        return await mutate_tag_mapping(call, "delete")
 
     try:
         await _async_reload(hass, store)
@@ -125,6 +177,36 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_QUERY_TAG_MAPPINGS,
         query_tag_mappings,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_VALIDATE_TAG_MAPPING,
+        validate_tag_mapping,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_VALIDATE_TAG_MAPPING_RECORD,
+        validate_tag_mapping_record,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CREATE_TAG_MAPPING,
+        create_tag_mapping,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_TAG_MAPPING,
+        update_tag_mapping,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_TAG_MAPPING,
+        delete_tag_mapping,
         supports_response=SupportsResponse.ONLY,
     )
     hass.async_create_task(

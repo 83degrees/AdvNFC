@@ -2,6 +2,8 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import sys
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = spec_from_file_location(
     "advnfc_admin_mapping", ROOT / "custom_components" / "advnfc" / "mapping.py"
@@ -34,14 +36,27 @@ tags:
 
 
 def test_capabilities_expose_stable_interface_and_active_schema():
-    assert _snapshot().administration_capabilities() == {
+    response = _snapshot().administration_capabilities()
+    assert response == {
         "interface_id": "advnfc.tag_mapping.administration",
-        "interface_version": 1,
+        "interface_version": 2,
         "tag_mapping_schema_version": 1,
+        "revision": response["revision"],
         "ok": True,
         "supported_action_types": ["astv_intent"],
-        "operations": ["capabilities", "list", "get", "query"],
+        "operations": [
+            "capabilities",
+            "list",
+            "get",
+            "query",
+            "validate_document",
+            "validate_record",
+            "create",
+            "update",
+            "delete",
+        ],
     }
+    assert response["revision"].startswith("v1-")
 
 
 def test_list_returns_normalized_records_in_canonical_uid_order():
@@ -93,3 +108,142 @@ def test_query_rejects_unsupported_type_and_invalid_target_shape():
     malformed = _snapshot().administration_query("astv_intent", "classic fm")
     assert unsupported["error"]["code"] == "invalid_query"
     assert malformed["error"]["code"] == "invalid_query"
+
+
+def _record(uid: str = "D4", label: str = "New radio") -> dict:
+    return {
+        "uid": uid,
+        "label": label,
+        "action": {"type": "astv_intent", "intent_id": "gold_radio"},
+    }
+
+
+def _store(tmp_path: Path):
+    path = tmp_path / "advnfc_tag_mapping.yaml"
+    path.write_text(
+        """tag_mapping_schema_version: 1
+tags:
+  A1:
+    label: First radio
+    action: {type: astv_intent, intent_id: classic_fm}
+""",
+        encoding="utf-8",
+    )
+    store = mapping.TagMappingStore()
+    store.load_and_activate(path, set().__contains__)
+    return store, path
+
+
+def test_complete_candidate_and_record_validation_normalize_without_writing(tmp_path):
+    store, path = _store(tmp_path)
+    before = path.read_text(encoding="utf-8")
+    record = store.administration_validate_record(
+        _record(" d4 "), set().__contains__
+    )
+    assert record["ok"] is True
+    assert record["mapping"]["uid"] == "D4"
+    assert path.read_text(encoding="utf-8") == before
+
+    invalid = store.administration_validate_document(
+        {
+            "tag_mapping_schema_version": 1,
+            "mappings": [_record("D4"), _record(" d4 ")],
+        },
+        set().__contains__,
+    )
+    assert invalid["ok"] is False
+    assert invalid["error"]["code"] == "duplicate_uid"
+
+
+def test_create_update_delete_are_atomic_and_do_not_activate(tmp_path):
+    store, path = _store(tmp_path)
+    active = store.active
+    assert active is not None
+
+    created = store.administration_create(
+        path, active.revision, _record(" d4 "), set().__contains__
+    )
+    assert created["ok"] is True
+    assert created["mapping"]["uid"] == "D4"
+    assert created["activation_required"] is True
+    assert store.active is active
+    assert store.find("D4") == {}
+
+    updated = store.administration_update(
+        path,
+        created["persisted_revision"],
+        _record("D4", "Updated radio"),
+        set().__contains__,
+    )
+    assert updated["ok"] is True
+    assert updated["mapping"]["label"] == "Updated radio"
+    assert store.active is active
+
+    deleted = store.administration_delete(
+        path,
+        updated["persisted_revision"],
+        " d4 ",
+        set().__contains__,
+    )
+    assert deleted["ok"] is True
+    persisted = store._persisted_snapshot(path, set().__contains__)
+    assert "D4" not in persisted.tags
+    assert store.active is active
+
+
+def test_stale_revision_rejects_write_without_mutation(tmp_path):
+    store, path = _store(tmp_path)
+    before = path.read_bytes()
+    response = store.administration_create(
+        path, "v1-stale", _record(), set().__contains__
+    )
+    assert response["error"]["code"] == "stale_revision"
+    assert path.read_bytes() == before
+
+
+def test_invalid_candidate_rejects_write_without_mutation(tmp_path):
+    store, path = _store(tmp_path)
+    assert store.active is not None
+    before = path.read_bytes()
+    invalid = _record()
+    invalid["action"]["type"] = "ha_action"
+    response = store.administration_create(
+        path, store.active.revision, invalid, set().__contains__
+    )
+    assert response["error"]["code"] == "invalid_candidate"
+    assert path.read_bytes() == before
+
+
+def test_atomic_replace_failure_retains_authoritative_file(tmp_path, monkeypatch):
+    store, path = _store(tmp_path)
+    assert store.active is not None
+    before = path.read_bytes()
+
+    def fail_replace(source, destination):
+        raise OSError("simulated replacement failure")
+
+    monkeypatch.setattr(mapping.os, "replace", fail_replace)
+    response = store.administration_create(
+        path, store.active.revision, _record(), set().__contains__
+    )
+    assert response["error"]["code"] == "atomic_write_failed"
+    assert path.read_bytes() == before
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
+@pytest.mark.parametrize(
+    ("operation", "record", "code"),
+    [
+        ("create", _record("A1"), "already_exists"),
+        ("update", _record("D4"), "not_found"),
+    ],
+)
+def test_create_and_update_enforce_provider_semantics(
+    tmp_path, operation, record, code
+):
+    store, path = _store(tmp_path)
+    assert store.active is not None
+    response = getattr(store, f"administration_{operation}")(
+        path, store.active.revision, record, set().__contains__
+    )
+    assert response["error"]["code"] == code

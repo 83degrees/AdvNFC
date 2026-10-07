@@ -69,6 +69,15 @@ One invalid record rejects the entire candidate. A successful validation
 atomically replaces the active immutable snapshot. A failed reload leaves the
 previous active snapshot unchanged.
 
+Administration consumers submit normalized records through the provider-owned
+administration interface rather than YAML. Complete-candidate and individual
+record validation apply these same closed schema-v1 rules. Accepted managed
+create, update, and delete operations validate the complete resulting document
+and atomically replace the persisted YAML, but deliberately do not replace the
+active snapshot. Each active and persisted semantic state has a deterministic,
+opaque revision used for stale-write protection; consumers compare it only for
+equality.
+
 ## Normalized runtime record
 
 `advnfc.find_tag_record` normalizes the supplied UID and returns `{}` for an

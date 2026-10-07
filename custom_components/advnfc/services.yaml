@@ -34,3 +34,50 @@ query_tag_mappings:
       example: classic_fm
       selector:
         text:
+
+validate_tag_mapping:
+  fields:
+    candidate:
+      required: true
+      selector:
+        object:
+
+validate_tag_mapping_record:
+  fields:
+    mapping:
+      required: true
+      selector:
+        object:
+
+create_tag_mapping:
+  fields:
+    expected_revision:
+      required: true
+      selector:
+        text:
+    mapping:
+      required: true
+      selector:
+        object:
+
+update_tag_mapping:
+  fields:
+    expected_revision:
+      required: true
+      selector:
+        text:
+    mapping:
+      required: true
+      selector:
+        object:
+
+delete_tag_mapping:
+  fields:
+    expected_revision:
+      required: true
+      selector:
+        text:
+    uid:
+      required: true
+      selector:
+        text:
