@@ -15,7 +15,9 @@ record, and Select Tag Action component are the deployed AdvNFC baseline.
 ASTV-324 established the provider-owned administration read boundary over that
 same active snapshot. ASTV-325 extends it with candidate validation, atomic
 persisted writes, and optimistic stale-write protection while preserving
-runtime activation as a separate phase.
+runtime activation as a separate phase. ASTV-326 completes the administrable
+model with verified active/persisted status and provider-owned, failure-safe
+managed activation.
 
 ASTV-322 transferred reader-agent source, packaging, deployment and provider-contract authority to the separately governed AdvNFC Reader Agent product. AdvNFC now begins at configured Home Assistant reader-event state and consumes the provider-owned AdvNFC Reader Event MQTT Interface.
 
@@ -133,9 +135,11 @@ snapshot. A failed reload preserves the previous snapshot.
 `sensor.advnfc_tag_mapping` is a registered, non-polling Home Assistant
 `SensorEntity` owned by the AdvNFC sensor platform. It has the stable unique ID
 `advnfc_tag_mapping`, appears beneath the AdvNFC integration in the entity
-registry, and exposes the active schema version and mapping count as runtime
-capability state. A successful mapping activation dispatches an update to the
-entity; a failed reload leaves the prior snapshot and sensor state unchanged.
+registry, and exposes the active schema version, mapping count, active and last
+verified persisted revisions, activation-required state, and last activation
+error as runtime capability state. Save and activation attempts dispatch state
+updates. A failed reload retains the prior active snapshot while exposing the
+failure separately.
 
 ### AdvNFC Administration Boundary
 
@@ -162,8 +166,16 @@ active state unchanged.
 Persistence deliberately does not activate the new mapping. Runtime routing
 and active read/query results continue using the existing immutable snapshot,
 and a successful write returns `activation_required` together with the new
-persisted revision. Provider-owned activation and failure-safe reload are the
-responsibility of the following managed-activation phase.
+persisted revision. `advnfc.get_administration_status` verifies the persisted
+candidate and distinguishes `active`, `activation_required`,
+`persisted_invalid`, and `persisted_unavailable` states.
+
+`advnfc.reload_tag_mapping` is the provider-owned managed activation boundary.
+It reads and validates the complete persisted candidate under the same lock as
+managed writes and swaps the active snapshot only after validation succeeds.
+Failure returns a deterministic administration error and retains the previous
+active valid snapshot. A corrected candidate can be retried without a hidden
+rollback or history store.
 
 The schema-v1 query route supports `astv_intent` plus normalized
 `intent_id`. AdvNFC owns query and normalization semantics but does not read
@@ -223,7 +235,7 @@ AdvNFC does not reproduce or alter that precedence.
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
 | `advnfc_tag_mapping.yaml` | Data source | Closed schema-v1 candidate loaded and validated into one immutable active AdvNFC mapping snapshot |
 | ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
-| AdvNFC Administration Interface | Provider-owned contract | Future management consumers read and validate normalized mappings and atomically persist guarded mutations without access to YAML internals |
+| AdvNFC Administration Interface | Provider-owned contract | Future management consumers read and validate normalized mappings, atomically persist guarded mutations, inspect active/persisted state, and request failure-safe activation without access to YAML internals |
 
 ## Interface Naming and Return Boundaries
 
@@ -266,6 +278,7 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 - `script.advnfc_select_tag_action`
 - `advnfc_tag_mapping.yaml`
 - `advnfc.get_administration_capabilities`
+- `advnfc.get_administration_status`
 - `advnfc.list_tag_mappings`
 - `advnfc.get_tag_mapping`
 - `advnfc.query_tag_mappings`
@@ -274,6 +287,7 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 - `advnfc.create_tag_mapping`
 - `advnfc.update_tag_mapping`
 - `advnfc.delete_tag_mapping`
+- `advnfc.reload_tag_mapping`
 
 ASTV begins at the provider-owned Intent Invocation boundary.
 

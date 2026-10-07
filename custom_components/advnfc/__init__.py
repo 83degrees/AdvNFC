@@ -12,7 +12,6 @@ from homeassistant.core import (
     ServiceResponse,
     SupportsResponse,
 )
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import discovery
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -24,6 +23,7 @@ DOMAIN = "advnfc"
 SERVICE_FIND_TAG_RECORD = "find_tag_record"
 SERVICE_RELOAD_TAG_MAPPING = "reload_tag_mapping"
 SERVICE_GET_ADMINISTRATION_CAPABILITIES = "get_administration_capabilities"
+SERVICE_GET_ADMINISTRATION_STATUS = "get_administration_status"
 SERVICE_LIST_TAG_MAPPINGS = "list_tag_mappings"
 SERVICE_GET_TAG_MAPPING = "get_tag_mapping"
 SERVICE_QUERY_TAG_MAPPINGS = "query_tag_mappings"
@@ -42,23 +42,16 @@ def _mapping_path(hass: HomeAssistant) -> Path:
     return Path(hass.config.path("AdvNFC", "advnfc_tag_mapping.yaml"))
 
 
-async def _async_reload(hass: HomeAssistant, store: TagMappingStore) -> ServiceResponse:
+async def _async_activate(hass: HomeAssistant, store: TagMappingStore) -> ServiceResponse:
     area_registry = ar.async_get(hass)
     area_ids = {area.id for area in area_registry.async_list_areas()}
-    try:
-        snapshot = await hass.async_add_executor_job(
-            store.load_and_activate,
-            _mapping_path(hass),
-            area_ids.__contains__,
-        )
-    except (OSError, TagMappingValidationError) as error:
-        raise HomeAssistantError(f"AdvNFC tag mapping rejected: {error}") from error
+    response = await hass.async_add_executor_job(
+        store.administration_activate,
+        _mapping_path(hass),
+        area_ids.__contains__,
+    )
     async_dispatcher_send(hass, SIGNAL_TAG_MAPPING_UPDATED)
-    return {
-        "schema_version": snapshot.schema_version,
-        "mapping_count": snapshot.count,
-        "revision": snapshot.revision,
-    }
+    return response
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -77,6 +70,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def list_tag_mappings(call: ServiceCall) -> ServiceResponse:
         return store.administration_list()
+
+    async def get_administration_status(call: ServiceCall) -> ServiceResponse:
+        areas = area_ids()
+        response = await hass.async_add_executor_job(
+            store.administration_status,
+            _mapping_path(hass),
+            areas.__contains__,
+        )
+        async_dispatcher_send(hass, SIGNAL_TAG_MAPPING_UPDATED)
+        return response
 
     async def get_tag_mapping(call: ServiceCall) -> ServiceResponse:
         return store.administration_get(call.data.get("uid", ""))
@@ -116,13 +119,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             if operation == "delete"
             else call.data.get("mapping", {})
         )
-        return await hass.async_add_executor_job(
+        response = await hass.async_add_executor_job(
             method,
             _mapping_path(hass),
             call.data.get("expected_revision", ""),
             value,
             areas.__contains__,
         )
+        if response["ok"]:
+            async_dispatcher_send(hass, SIGNAL_TAG_MAPPING_UPDATED)
+        return response
 
     async def create_tag_mapping(call: ServiceCall) -> ServiceResponse:
         return await mutate_tag_mapping(call, "create")
@@ -134,14 +140,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         return await mutate_tag_mapping(call, "delete")
 
     try:
-        await _async_reload(hass, store)
-    except HomeAssistantError as error:
+        await hass.async_add_executor_job(
+            store.load_and_activate,
+            _mapping_path(hass),
+            area_ids().__contains__,
+        )
+    except (OSError, TagMappingValidationError) as error:
         _LOGGER.error("%s", error)
         return False
 
-    async def reload_tag_mapping(call: ServiceCall) -> ServiceResponse | None:
-        response = await _async_reload(hass, store)
-        return response if call.return_response else None
+    async def reload_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        return await _async_activate(hass, store)
 
     hass.services.async_register(
         DOMAIN,
@@ -153,7 +162,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_RELOAD_TAG_MAPPING,
         reload_tag_mapping,
-        supports_response=SupportsResponse.OPTIONAL,
+        supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(
         DOMAIN,
@@ -165,6 +174,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_LIST_TAG_MAPPINGS,
         list_tag_mappings,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_ADMINISTRATION_STATUS,
+        get_administration_status,
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(

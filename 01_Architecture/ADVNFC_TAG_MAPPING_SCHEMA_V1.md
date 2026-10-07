@@ -78,6 +78,12 @@ active snapshot. Each active and persisted semantic state has a deterministic,
 opaque revision used for stale-write protection; consumers compare it only for
 equality.
 
+Managed status verifies the authoritative persisted candidate independently of
+the active immutable snapshot. Managed reload activates only a completely
+validated persisted revision. A failed reload retains the previous active
+snapshot and exposes a deterministic administration error; retry evaluates the
+then-current complete persisted candidate.
+
 ## Normalized runtime record
 
 `advnfc.find_tag_record` normalizes the supplied UID and returns `{}` for an

@@ -47,11 +47,22 @@ class AdvNFCTagMappingSensor(SensorEntity):
         """Return capability details for the active mapping snapshot."""
         snapshot = self._store.active
         if snapshot is None:
-            return {"schema_version": None, "mapping_count": 0}
+            return {
+                "schema_version": None,
+                "mapping_count": 0,
+                "active_revision": None,
+                "persisted_revision": self._store.persisted_revision,
+                "activation_required": self._store.activation_required,
+                "last_activation_error": self._store.last_activation_error,
+            }
         return {
             "schema_version": snapshot.schema_version,
             "mapping_count": snapshot.count,
             "revision": snapshot.revision,
+            "active_revision": snapshot.revision,
+            "persisted_revision": self._store.persisted_revision,
+            "activation_required": self._store.activation_required,
+            "last_activation_error": self._store.last_activation_error,
         }
 
     async def async_added_to_hass(self) -> None:

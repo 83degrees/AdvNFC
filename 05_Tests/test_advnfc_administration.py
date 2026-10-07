@@ -39,7 +39,7 @@ def test_capabilities_expose_stable_interface_and_active_schema():
     response = _snapshot().administration_capabilities()
     assert response == {
         "interface_id": "advnfc.tag_mapping.administration",
-        "interface_version": 2,
+        "interface_version": 3,
         "tag_mapping_schema_version": 1,
         "revision": response["revision"],
         "ok": True,
@@ -49,11 +49,13 @@ def test_capabilities_expose_stable_interface_and_active_schema():
             "list",
             "get",
             "query",
+            "status",
             "validate_document",
             "validate_record",
             "create",
             "update",
             "delete",
+            "activate",
         ],
     }
     assert response["revision"].startswith("v1-")
@@ -189,6 +191,73 @@ def test_create_update_delete_are_atomic_and_do_not_activate(tmp_path):
     persisted = store._persisted_snapshot(path, set().__contains__)
     assert "D4" not in persisted.tags
     assert store.active is active
+
+
+def test_status_distinguishes_persisted_candidate_from_active_snapshot(tmp_path):
+    store, path = _store(tmp_path)
+    assert store.active is not None
+    created = store.administration_create(
+        path, store.active.revision, _record(), set().__contains__
+    )
+
+    status = store.administration_status(path, set().__contains__)
+    assert status["ok"] is True
+    assert status["state"] == "activation_required"
+    assert status["active_revision"] != status["persisted_revision"]
+    assert status["persisted_revision"] == created["persisted_revision"]
+    assert status["activation_required"] is True
+    assert status["active_count"] == 1
+    assert status["persisted_count"] == 2
+
+
+def test_activation_succeeds_atomically_and_clears_pending_state(tmp_path):
+    store, path = _store(tmp_path)
+    assert store.active is not None
+    created = store.administration_create(
+        path, store.active.revision, _record(), set().__contains__
+    )
+    assert store.find("D4") == {}
+
+    activated = store.administration_activate(path, set().__contains__)
+    assert activated["ok"] is True
+    assert activated["state"] == "active"
+    assert activated["active_revision"] == created["persisted_revision"]
+    assert activated["persisted_revision"] == created["persisted_revision"]
+    assert activated["activation_required"] is False
+    assert store.find("D4")["label"] == "New radio"
+
+
+def test_failed_activation_retains_active_snapshot_and_retry_recovers(tmp_path):
+    store, path = _store(tmp_path)
+    previous_active = store.active
+    assert previous_active is not None
+    created = store.administration_create(
+        path, previous_active.revision, _record(), set().__contains__
+    )
+    valid_candidate = path.read_bytes()
+    path.write_text(
+        "tag_mapping_schema_version: 1\ntags:\n  D4:\n    label: Broken\n",
+        encoding="utf-8",
+    )
+
+    failed = store.administration_activate(path, set().__contains__)
+    assert failed["ok"] is False
+    assert failed["state"] == "persisted_invalid"
+    assert failed["error"]["code"] == "invalid_candidate"
+    assert failed["active_revision"] == previous_active.revision
+    assert store.active is previous_active
+    assert store.find("D4") == {}
+
+    status = store.administration_status(path, set().__contains__)
+    assert status["last_activation_error"]["code"] == "invalid_candidate"
+
+    path.write_bytes(valid_candidate)
+    recovered = store.administration_activate(path, set().__contains__)
+    assert recovered["ok"] is True
+    assert recovered["active_revision"] == created["persisted_revision"]
+    assert recovered["activation_required"] is False
+    assert store.last_activation_error is None
+    assert store.find("D4")["label"] == "New radio"
 
 
 def test_stale_revision_rejects_write_without_mutation(tmp_path):

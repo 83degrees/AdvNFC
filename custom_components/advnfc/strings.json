@@ -12,11 +12,15 @@
     },
     "reload_tag_mapping": {
       "name": "Reload tag mapping",
-      "description": "Validate and atomically activate the candidate AdvNFC tag mapping."
+      "description": "Validate and atomically activate the persisted AdvNFC tag mapping while retaining the previous active snapshot on failure."
     },
     "get_administration_capabilities": {
       "name": "Get administration capabilities",
-      "description": "Return the administration interface identity, active schema version, supported action types, and operations."
+      "description": "Return the administration interface identity, active and persisted revisions, supported action types, and operations."
+    },
+    "get_administration_status": {
+      "name": "Get administration status",
+      "description": "Verify and report active versus persisted mapping state and the last activation failure."
     },
     "list_tag_mappings": {
       "name": "List tag mappings",

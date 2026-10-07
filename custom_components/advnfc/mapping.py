@@ -18,18 +18,20 @@ import yaml
 
 SCHEMA_VERSION = 1
 ADMIN_INTERFACE_ID = "advnfc.tag_mapping.administration"
-ADMIN_INTERFACE_VERSION = 2
+ADMIN_INTERFACE_VERSION = 3
 SUPPORTED_ACTION_TYPES = ("astv_intent",)
 ADMIN_OPERATIONS = (
     "capabilities",
     "list",
     "get",
     "query",
+    "status",
     "validate_document",
     "validate_record",
     "create",
     "update",
     "delete",
+    "activate",
 )
 ROOT_FIELDS = frozenset({"tag_mapping_schema_version", "tags"})
 TAG_FIELDS = frozenset({"label", "area_override", "action"})
@@ -490,20 +492,46 @@ class TagMappingStore:
 
     def __init__(self) -> None:
         self._active: TagMappingSnapshot | None = None
+        self._persisted_revision: str | None = None
+        self._last_activation_error: dict[str, str] | None = None
         self._write_lock = threading.Lock()
 
     @property
     def active(self) -> TagMappingSnapshot | None:
         return self._active
 
+    @property
+    def persisted_revision(self) -> str | None:
+        """Return the most recently verified persisted revision."""
+
+        return self._persisted_revision
+
+    @property
+    def activation_required(self) -> bool:
+        """Return whether verified persisted state differs from active state."""
+
+        active_revision = None if self._active is None else self._active.revision
+        return active_revision != self._persisted_revision
+
+    @property
+    def last_activation_error(self) -> dict[str, str] | None:
+        """Return the last managed activation failure, if any."""
+
+        return (
+            None
+            if self._last_activation_error is None
+            else dict(self._last_activation_error)
+        )
+
     def load_and_activate(
         self, path: Path, area_exists: Callable[[str], bool]
     ) -> TagMappingSnapshot:
-        document = parse_yaml_document(path.read_text(encoding="utf-8"))
-        tags = validate_document(document, area_exists)
-        candidate = TagMappingSnapshot(schema_version=SCHEMA_VERSION, tags=tags)
-        self._active = candidate
-        return candidate
+        with self._write_lock:
+            candidate = self._persisted_snapshot(path, area_exists)
+            self._active = candidate
+            self._persisted_revision = candidate.revision
+            self._last_activation_error = None
+            return candidate
 
     def find(self, uid: object) -> dict[str, Any]:
         if self._active is None:
@@ -516,26 +544,47 @@ class TagMappingStore:
         return self._active
 
     def administration_capabilities(self) -> dict[str, Any]:
-        return self._active_snapshot().administration_capabilities()
+        return self._with_state(
+            self._active_snapshot().administration_capabilities()
+        )
 
     def administration_list(self) -> dict[str, Any]:
-        return self._active_snapshot().administration_list()
+        return self._with_state(self._active_snapshot().administration_list())
 
     def administration_get(self, uid: object) -> dict[str, Any]:
-        return self._active_snapshot().administration_get(uid)
+        return self._with_state(self._active_snapshot().administration_get(uid))
 
     def administration_query(
         self, action_type: object, intent_id: object
     ) -> dict[str, Any]:
-        return self._active_snapshot().administration_query(action_type, intent_id)
+        return self._with_state(
+            self._active_snapshot().administration_query(action_type, intent_id)
+        )
+
+    def _with_state(self, response: dict[str, Any]) -> dict[str, Any]:
+        """Add the manager-facing active/persisted state to a response."""
+
+        active = self._active
+        active_revision = None if active is None else active.revision
+        return {
+            **response,
+            "active_revision": active_revision,
+            "persisted_revision": self._persisted_revision,
+            "activation_required": (
+                active_revision != self._persisted_revision
+            ),
+        }
 
     def _base_response(self, **values: Any) -> dict[str, Any]:
         active = self._active
+        active_revision = None if active is None else active.revision
         return {
             "interface_id": ADMIN_INTERFACE_ID,
             "interface_version": ADMIN_INTERFACE_VERSION,
             "tag_mapping_schema_version": SCHEMA_VERSION,
-            "active_revision": None if active is None else active.revision,
+            "active_revision": active_revision,
+            "persisted_revision": self._persisted_revision,
+            "activation_required": active_revision != self._persisted_revision,
             **values,
         }
 
@@ -584,6 +633,90 @@ class TagMappingStore:
             validate_document(document, area_exists),
         )
 
+    def administration_status(
+        self, path: Path, area_exists: Callable[[str], bool]
+    ) -> dict[str, Any]:
+        """Report the verified persisted candidate and active snapshot state."""
+
+        with self._write_lock:
+            try:
+                persisted = self._persisted_snapshot(path, area_exists)
+            except TagMappingValidationError as error:
+                self._persisted_revision = None
+                return self._base_response(
+                    ok=False,
+                    state="persisted_invalid",
+                    last_activation_error=self._last_activation_error,
+                    error=error.administration_error(),
+                )
+            except OSError:
+                self._persisted_revision = None
+                return self._base_response(
+                    ok=False,
+                    state="persisted_unavailable",
+                    last_activation_error=self._last_activation_error,
+                    error={
+                        "code": "persisted_state_unavailable",
+                        "message": (
+                            "the authoritative persisted mapping could not be read"
+                        ),
+                    },
+                )
+
+            self._persisted_revision = persisted.revision
+            return self._base_response(
+                ok=True,
+                state=(
+                    "active"
+                    if self._active is not None
+                    and self._active.revision == persisted.revision
+                    else "activation_required"
+                ),
+                active_count=0 if self._active is None else self._active.count,
+                persisted_count=persisted.count,
+                last_activation_error=self._last_activation_error,
+            )
+
+    def administration_activate(
+        self, path: Path, area_exists: Callable[[str], bool]
+    ) -> dict[str, Any]:
+        """Validate and atomically activate the complete persisted candidate."""
+
+        with self._write_lock:
+            try:
+                candidate = self._persisted_snapshot(path, area_exists)
+            except TagMappingValidationError as error:
+                self._persisted_revision = None
+                self._last_activation_error = error.administration_error()
+                return self._base_response(
+                    ok=False,
+                    operation="activate",
+                    state="persisted_invalid",
+                    error=self._last_activation_error,
+                )
+            except OSError:
+                self._persisted_revision = None
+                self._last_activation_error = {
+                    "code": "persisted_state_unavailable",
+                    "message": "the authoritative persisted mapping could not be read",
+                }
+                return self._base_response(
+                    ok=False,
+                    operation="activate",
+                    state="persisted_unavailable",
+                    error=self._last_activation_error,
+                )
+
+            self._persisted_revision = candidate.revision
+            self._active = candidate
+            self._last_activation_error = None
+            return self._base_response(
+                ok=True,
+                operation="activate",
+                state="active",
+                count=candidate.count,
+            )
+
     def _mutation_error(self, code: str, message: str, **values: Any) -> dict[str, Any]:
         return self._base_response(
             ok=False,
@@ -609,6 +742,8 @@ class TagMappingStore:
                     "persisted_state_unavailable",
                     "the authoritative persisted mapping could not be validated",
                 )
+
+            self._persisted_revision = persisted.revision
 
             expected = str(expected_revision).strip()
             if not expected or expected != persisted.revision:
@@ -679,13 +814,10 @@ class TagMappingStore:
                     persisted_revision=persisted.revision,
                 )
 
+            self._persisted_revision = candidate.revision
             return self._base_response(
                 ok=True,
                 operation=operation,
-                persisted_revision=candidate.revision,
-                activation_required=(
-                    self._active is None or self._active.revision != candidate.revision
-                ),
                 **result_values,
             )
 
