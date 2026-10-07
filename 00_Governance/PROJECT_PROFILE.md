@@ -73,7 +73,9 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 ## Contracts provided
 
-AdvNFC currently provides no cross-product contract.
+| Contract | Status/version | Consumers | Authoritative location | Purpose |
+| --- | --- | --- | --- | --- |
+| `ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | candidate interface v1 | Future AdvNFC management consumers | `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | Read-only capability, list, get and downstream-target query boundary over normalized active tag mappings. |
 
 ## Contracts consumed
 
@@ -106,6 +108,10 @@ Current Home Assistant implementation identities are:
 - `script.advnfc_uid_gateway`
 - `script.advnfc_find_tag_record`
 - `advnfc_tag_mapping.yaml`
+- `advnfc.get_administration_capabilities`
+- `advnfc.list_tag_mappings`
+- `advnfc.get_tag_mapping`
+- `advnfc.query_tag_mappings`
 - `packages/advnfc`
 
 These names are the active AdvNFC Home Assistant identities following the accepted production cutover. Reader-agent service identities belong to the external AdvNFC Reader Agent product.

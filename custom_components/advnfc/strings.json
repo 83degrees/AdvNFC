@@ -13,6 +13,38 @@
     "reload_tag_mapping": {
       "name": "Reload tag mapping",
       "description": "Validate and atomically activate the candidate AdvNFC tag mapping."
+    },
+    "get_administration_capabilities": {
+      "name": "Get administration capabilities",
+      "description": "Return the administration interface identity, active schema version, supported action types, and operations."
+    },
+    "list_tag_mappings": {
+      "name": "List tag mappings",
+      "description": "Return every active tag mapping as a normalized administration record."
+    },
+    "get_tag_mapping": {
+      "name": "Get tag mapping",
+      "description": "Return one normalized active mapping by UID with explicit invalid-query and not-found responses.",
+      "fields": {
+        "uid": {
+          "name": "UID",
+          "description": "The NFC UID to normalize and look up."
+        }
+      }
+    },
+    "query_tag_mappings": {
+      "name": "Query tag mappings",
+      "description": "Return active mappings whose typed action targets the supplied downstream identifier.",
+      "fields": {
+        "action_type": {
+          "name": "Action type",
+          "description": "The supported typed-action route to query."
+        },
+        "intent_id": {
+          "name": "Intent ID",
+          "description": "The downstream ASTV intent identifier to normalize and match."
+        }
+      }
     }
   }
 }
