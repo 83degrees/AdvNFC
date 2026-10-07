@@ -51,6 +51,7 @@ class AdvNFCTagMappingSensor(SensorEntity):
         return {
             "schema_version": snapshot.schema_version,
             "mapping_count": snapshot.count,
+            "revision": snapshot.revision,
         }
 
     async def async_added_to_hass(self) -> None:

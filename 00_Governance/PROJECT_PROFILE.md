@@ -75,7 +75,7 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 | Contract | Status/version | Consumers | Authoritative location | Purpose |
 | --- | --- | --- | --- | --- |
-| `ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | candidate interface v1 | Future AdvNFC management consumers | `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | Read-only capability, list, get and downstream-target query boundary over normalized active tag mappings. |
+| `ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | candidate interface v2 | Future AdvNFC management consumers | `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | Normalized read/query, candidate validation, atomic persisted create/update/delete, and opaque stale-write protection; persistence remains separate from runtime activation. |
 
 ## Contracts consumed
 

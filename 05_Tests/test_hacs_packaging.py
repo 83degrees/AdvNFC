@@ -39,7 +39,7 @@ def test_hacs_repository_metadata_and_manifest_are_valid() -> None:
     assert result.returncode == 0, result.stderr
     manifest = json.loads((INTEGRATION / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["domain"] == "advnfc"
-    assert manifest["version"] == "1.1.0"
+    assert manifest["version"] == "1.2.0"
 
 
 def test_hacs_root_is_sole_integration_source_and_pointer_is_nonduplicating() -> None:
