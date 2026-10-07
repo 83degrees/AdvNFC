@@ -13,6 +13,11 @@ deployment, or rollback. Once explicit stable-promotion authority exists,
 stable tag and GitHub Release creation follow through the approved HACS
 mechanism.
 
+HACS is the sole future GitHub Release consumer for this repository.
+Historical `reader-agent-*` Git tags remain as migration provenance, but they
+are not AdvNFC integration versions and must not acquire new GitHub Release
+objects.
+
 ## Beta preparation and handoff
 
 After the accepted issue PR is integrated into persistent `beta`, record its
