@@ -23,6 +23,10 @@ from .mapping import TagMappingStore, TagMappingValidationError
 DOMAIN = "advnfc"
 SERVICE_FIND_TAG_RECORD = "find_tag_record"
 SERVICE_RELOAD_TAG_MAPPING = "reload_tag_mapping"
+SERVICE_GET_ADMINISTRATION_CAPABILITIES = "get_administration_capabilities"
+SERVICE_LIST_TAG_MAPPINGS = "list_tag_mappings"
+SERVICE_GET_TAG_MAPPING = "get_tag_mapping"
+SERVICE_QUERY_TAG_MAPPINGS = "query_tag_mappings"
 DATA_STORE = "tag_mapping_store"
 SIGNAL_TAG_MAPPING_UPDATED = "advnfc_tag_mapping_updated"
 
@@ -60,6 +64,23 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def find_tag_record(call: ServiceCall) -> ServiceResponse:
         return store.find(call.data.get("uid", ""))
 
+    async def get_administration_capabilities(
+        call: ServiceCall,
+    ) -> ServiceResponse:
+        return store.administration_capabilities()
+
+    async def list_tag_mappings(call: ServiceCall) -> ServiceResponse:
+        return store.administration_list()
+
+    async def get_tag_mapping(call: ServiceCall) -> ServiceResponse:
+        return store.administration_get(call.data.get("uid", ""))
+
+    async def query_tag_mappings(call: ServiceCall) -> ServiceResponse:
+        return store.administration_query(
+            call.data.get("action_type", ""),
+            call.data.get("intent_id", ""),
+        )
+
     try:
         await _async_reload(hass, store)
     except HomeAssistantError as error:
@@ -81,6 +102,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         SERVICE_RELOAD_TAG_MAPPING,
         reload_tag_mapping,
         supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_ADMINISTRATION_CAPABILITIES,
+        get_administration_capabilities,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_LIST_TAG_MAPPINGS,
+        list_tag_mappings,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_TAG_MAPPING,
+        get_tag_mapping,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_QUERY_TAG_MAPPINGS,
+        query_tag_mappings,
+        supports_response=SupportsResponse.ONLY,
     )
     hass.async_create_task(
         discovery.async_load_platform(hass, Platform.SENSOR, DOMAIN, {}, config)
