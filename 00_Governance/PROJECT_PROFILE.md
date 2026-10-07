@@ -75,7 +75,7 @@ The Markdown file is the semantic architecture authority. The diagram is its gov
 
 | Contract | Status/version | Consumers | Authoritative location | Purpose |
 | --- | --- | --- | --- | --- |
-| `ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | candidate interface v2 | Future AdvNFC management consumers | `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | Normalized read/query, candidate validation, atomic persisted create/update/delete, and opaque stale-write protection; persistence remains separate from runtime activation. |
+| `ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | candidate interface v3 | Future AdvNFC management consumers | `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md` | Normalized read/query, candidate validation, atomic persisted create/update/delete, explicit active/persisted status, opaque stale-write protection, and failure-safe managed activation. |
 
 ## Contracts consumed
 
@@ -109,9 +109,11 @@ Current Home Assistant implementation identities are:
 - `script.advnfc_find_tag_record`
 - `advnfc_tag_mapping.yaml`
 - `advnfc.get_administration_capabilities`
+- `advnfc.get_administration_status`
 - `advnfc.list_tag_mappings`
 - `advnfc.get_tag_mapping`
 - `advnfc.query_tag_mappings`
+- `advnfc.reload_tag_mapping`
 - `packages/advnfc`
 
 These names are the active AdvNFC Home Assistant identities following the accepted production cutover. Reader-agent service identities belong to the external AdvNFC Reader Agent product.
@@ -146,7 +148,7 @@ repository does not introduce a different runtime configuration model.
 ## Repository source baseline
 
 The authoritative Home Assistant integration source is only
-`custom_components/advnfc/**`; its manifest remains version `1.0.1`.
+`custom_components/advnfc/**`; its manifest is version `1.3.0`.
 
 The authoritative operator-selected Home Assistant configuration baseline is:
 

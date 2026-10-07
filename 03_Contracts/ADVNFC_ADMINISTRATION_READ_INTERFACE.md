@@ -4,14 +4,14 @@
 
 - Provider: AdvNFC
 - Interface ID: `advnfc.tag_mapping.administration`
-- Interface version: `2`
+- Interface version: `3`
 - Status: candidate
-- Source issues: `ASTV-324`, `ASTV-325`
+- Source issues: `ASTV-324`, `ASTV-325`, `ASTV-326`
 
-This is the provider-owned boundary for reading, validating, and persisting the
-AdvNFC tag-mapping model. Consumers use normalized records through this
-interface and must not read, write, or depend on the YAML representation of
-`advnfc_tag_mapping.yaml`.
+This is the provider-owned boundary for reading, validating, persisting, and
+activating the AdvNFC tag-mapping model. Consumers use normalized records
+through this interface and must not read, write, or depend on the YAML
+representation of `advnfc_tag_mapping.yaml`.
 
 ## Transport and operations
 
@@ -20,6 +20,7 @@ The interface uses response-only Home Assistant services:
 | Operation | Service | Input |
 |---|---|---|
 | Capabilities | `advnfc.get_administration_capabilities` | none |
+| Status | `advnfc.get_administration_status` | none |
 | List | `advnfc.list_tag_mappings` | none |
 | Get | `advnfc.get_tag_mapping` | `uid` |
 | Query | `advnfc.query_tag_mappings` | `action_type`, `intent_id` |
@@ -28,28 +29,39 @@ The interface uses response-only Home Assistant services:
 | Create | `advnfc.create_tag_mapping` | `expected_revision`, `mapping` |
 | Update | `advnfc.update_tag_mapping` | `expected_revision`, complete replacement `mapping` |
 | Delete | `advnfc.delete_tag_mapping` | `expected_revision`, `uid` |
+| Activate/reload | `advnfc.reload_tag_mapping` | none |
 
 Validation calls do not write or activate state. Create, update, and delete
-replace persisted state but do not activate or reload it.
+replace persisted state but do not activate it. Reload is the sole
+provider-owned managed activation operation.
 
 ## Common identity and normalized record
 
 Every response contains `interface_id`, `interface_version`,
-`tag_mapping_schema_version`, and `ok`. Read responses contain the opaque,
-deterministic `revision` of the active snapshot. Validation and write responses
-contain `active_revision`; successful writes additionally contain the new
-`persisted_revision` and `activation_required`.
+`tag_mapping_schema_version`, and `ok`. Manager-facing responses expose
+`active_revision`, `persisted_revision`, and `activation_required`. Read/query
+responses retain `revision` as an alias of the active revision for
+compatibility. Revisions are opaque and deterministic.
 
 Consumers must compare revisions only for equality. Their format and derivation
 are provider-owned. A write supplies `expected_revision`; a value different
 from the currently persisted revision fails with `stale_revision` and does not
 write. A successful write returns a new revision for a subsequent write.
 
-Records contain canonical `uid`, `label`, optional `area_override`, and typed `action`. They are projections of the active immutable snapshot, not serialized YAML.
+Records contain canonical `uid`, `label`, optional `area_override`, and typed
+`action`. They are projections of the active immutable snapshot, not serialized
+YAML.
 
-## Capabilities, list, get, and query
+## Capabilities, status, list, get, and query
 
-Capabilities returns supported action types and operations. List returns `count` and canonical-UID-ordered `mappings`.
+Capabilities returns supported action types, operations, and the currently
+known active/persisted state. Status validates the authoritative persisted
+candidate and returns `state: active` when its revision equals the active
+snapshot, or `state: activation_required` when they differ. It also returns
+`active_count`, `persisted_count`, and `last_activation_error`. An invalid or
+unreadable persisted candidate returns `persisted_invalid` or
+`persisted_unavailable` while continuing to identify the retained active
+revision. List returns `count` and canonical-UID-ordered `mappings`.
 
 Get trims and uppercases UID input. A known UID returns `mapping`; a valid missing UID returns `not_found`; a value that does not normalize to non-blank alphanumeric form returns `invalid_query`.
 
@@ -75,6 +87,40 @@ unchanged until a separate provider-owned activation operation succeeds.
 
 A rejected candidate, stale revision, missing/existing-record conflict, or
 failed atomic replacement leaves both persisted and active state unchanged.
+
+## Activation and end-to-end transaction semantics
+
+`advnfc.reload_tag_mapping` reads and validates the complete authoritative
+persisted document under the same provider-owned lock used for writes. Only a
+fully valid snapshot is swapped into active state. Success returns
+`operation: activate`, `state: active`, equal active and persisted revisions,
+`activation_required: false`, and the active mapping count.
+
+Activation failure is a response, not a partial state change. It returns
+`ok: false`, the retained `active_revision`, `activation_required: true`, a
+stable error code, and `state: persisted_invalid` or
+`persisted_unavailable`. The previously active valid snapshot continues to
+serve runtime routing and read/query calls. No hidden rollback or history store
+is created.
+
+The complete manager transaction model is:
+
+1. validation failure returns `invalid_candidate`; nothing is persisted or
+   activated;
+2. stale-write rejection returns `stale_revision`; nothing is persisted or
+   activated;
+3. save success returns a new persisted revision and leaves the old active
+   revision in service with `activation_required: true`;
+4. activation success makes that complete persisted revision active atomically;
+5. activation failure retains the prior active snapshot and exposes the failure
+   through status. After the persisted candidate or its dependencies are
+   corrected, the consumer retries the same reload operation; a successful
+   retry clears `last_activation_error`.
+
+A consumer must refresh status after another actor may have written or
+activated state. A save response is not evidence of activation, and an
+activation response is not a substitute for checking the intended active
+revision.
 
 ## Error semantics and compatibility
 

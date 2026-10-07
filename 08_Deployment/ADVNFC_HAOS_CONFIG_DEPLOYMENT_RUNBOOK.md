@@ -53,6 +53,35 @@ or contradictory. To roll back, restore every affected target and prior
 activation state, verify restored bytes, repeat the configuration check, and
 record the final target status.
 
+## Controlled administration-path validation
+
+After the accepted integration candidate is installed and loaded, validate the
+manager-facing transaction on `ha-starburst` only with explicit authority for
+the controlled runtime mutation:
+
+1. call `advnfc.get_administration_status` and
+   `advnfc.list_tag_mappings`; retain the baseline active/persisted revision,
+   normalized mapping collection, and exact prior persisted file bytes;
+2. submit the intended complete candidate or temporary record to the matching
+   validation service and require `ok: true` without a state change;
+3. save one bounded reversible change using the current persisted revision;
+4. verify status reports the original active revision, the new persisted
+   revision, and `activation_required: true`, while active list/lookup results
+   remain unchanged;
+5. call response-only `advnfc.reload_tag_mapping`, require `ok: true`, and
+   verify active and persisted revisions match the saved revision and the
+   controlled change is active;
+6. restore the exact governed baseline through a revision-guarded managed
+   mutation or exact prior-byte restoration as authorised, activate it, and
+   verify the final normalized collection, active revision, persisted revision,
+   file bytes, and functional lookup match the captured baseline.
+
+Stop and restore the baseline if any step fails. A save response is not
+activation evidence. A failed reload must leave the previously active revision
+and lookup behaviour intact; record its stable error code where failure-path
+validation is deliberately exercised. Do not leave a temporary mapping,
+persisted-not-active candidate, or failed candidate on the target.
+
 ## Deployment evidence record
 
 ```text
@@ -68,6 +97,9 @@ Target-byte verification and remaining limitation:
 Home Assistant configuration-check route, time, and result:
 Restart authority and result, if applicable:
 Integration load and functional-check result:
+Administration baseline revisions and mapping identity:
+Validation, save, pending-state, activation, and active-state results:
+Governed-baseline restoration and final revision/byte verification:
 Overall outcome:
 Rollback and revalidation result, if invoked:
 Unresolved conditions:
