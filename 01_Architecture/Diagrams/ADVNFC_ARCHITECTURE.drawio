@@ -9,10 +9,10 @@
             <mxRectangle height="2524" width="1700" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="advnfc-reader-agent" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" value="&lt;b&gt;AdvNFC Reader Agent&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 10px;&quot;&gt;libnfc / nfc-list&lt;/span&gt;" vertex="1">
+        <mxCell id="advnfc-reader-agent" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" value="&lt;b&gt;AdvNFC Reader Agent&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 10px;&quot;&gt;external product&lt;/span&gt;" vertex="1">
           <mxGeometry height="70" width="165" x="195" y="579.5" as="geometry" />
         </mxCell>
-        <mxCell id="edge-reader-agent-to-sensors" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="advnfc-reader-agent" style="edgeStyle=none;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6c8ebf;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="source-nfc-reader-sensors">
+        <mxCell id="edge-reader-agent-to-sensors" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="advnfc-reader-agent" style="edgeStyle=none;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#d6b656;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="source-nfc-reader-sensors">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="label-reader-agent-to-sensors" connectable="0" parent="edge-reader-agent-to-sensors" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Courier New;labelBackgroundColor=#f5f5f5;labelBorderColor=#666666;fontColor=#333333;" value="retained MQTT last_uid" vertex="1">
@@ -20,17 +20,6 @@
         </mxCell>
         <mxCell id="source-nfc-reader-sensors" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;" value="&lt;b&gt;NFC reader sensors&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;sensor.pi_nfc_02_last_uid&lt;br&gt;sensor.pi_nfc_99_last_uid&lt;/span&gt;" vertex="1">
           <mxGeometry height="70" width="290" x="374" y="579.5" as="geometry" />
-        </mxCell>
-        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-68" edge="1" parent="bt1bDLtFlfFqgo88Ziuf-1" source="AlRS6Nxp4NqdQ7xusg6v-67" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" target="advnfc-reader-agent">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-69" connectable="0" parent="AlRS6Nxp4NqdQ7xusg6v-68" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=#fff2cc;labelBorderColor=#d6b656;" value="NFCID1" vertex="1">
-          <mxGeometry relative="1" x="0.0177" y="1" as="geometry">
-            <mxPoint as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="AlRS6Nxp4NqdQ7xusg6v-67" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="&lt;b&gt;ACR122U&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 10px;&quot;&gt;physical NFC reader&lt;/span&gt;" vertex="1">
-          <mxGeometry height="70" width="120" x="55" y="579.5" as="geometry" />
         </mxCell>
         <mxCell id="advnfc-uid-gateway" parent="bt1bDLtFlfFqgo88Ziuf-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;" value="&lt;b&gt;UID Gateway&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;script.advnfc_uid_gateway&lt;/span&gt;" vertex="1">
           <mxGeometry height="70" width="260" x="1125" y="578" as="geometry" />

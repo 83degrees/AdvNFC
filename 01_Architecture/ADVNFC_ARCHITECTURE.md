@@ -16,9 +16,7 @@ ASTV-299 target state. Until the accepted ASTV-299 candidate is deployed and
 validated through the WF-01 Beta route, production continues to use the current
 direct tag-to-intent mapping path.
 
-ASTV-247 extended AdvNFC source authority upstream to the Raspberry Pi reader-agent software captured from `pi-nfc-02`. ASTV-249 subsequently deployed and proved that governed reader-agent baseline in production as `advnfc-reader-agent.service`.
-
-ASTV-249 deployed the governed reader-agent baseline as `advnfc-reader-agent.service` on `pi-nfc-02`; the legacy `assistive-card-listener.service` is retired and non-authoritative. ASTV-256 removed the migration-era Home Assistant webhook and generic MQTT event outputs from the governed candidate. ASTV-257 changes the canonical retained topic namespace for replacement/test readers to `advnfc/<reader>/last_uid` while keeping `pi-nfc-02` frozen on its legacy production topic until physical retirement. MQTT remains the reader transport.
+ASTV-322 transferred reader-agent source, packaging, deployment and provider-contract authority to the separately governed AdvNFC Reader Agent product. AdvNFC now begins at configured Home Assistant reader-event state and consumes the provider-owned AdvNFC Reader Event MQTT Interface.
 
 ## End-to-End Flow
 
@@ -30,97 +28,22 @@ The current production flow is:
 4. AdvNFC Tag Listener filters invalid/recovery transitions and calls AdvNFC UID Gateway.
 5. AdvNFC resolves the governed schema-v1 tag mapping into a typed action, selects the supported action route, and invokes ASTV through the provider-owned Intent Invocation interface.
 
-ASTV-249 established the governed production reader-agent deployment on `pi-nfc-02`. ASTV-256 is not to be deployed to that production reader; its cleaned candidate will be validated on a separate test reader device before any later production promotion is considered.
+## External Reader Event Provider Boundary
 
-## Raspberry Pi Reader Agent
+AdvNFC Reader Agent is an external product that owns physical UID acquisition,
+reader identity, suppression/reset behaviour, MQTT publication, runtime
+profiles, service configuration, Debian packaging, deployment and rollback.
+Its provider-owned contract is authoritative at:
 
-### Physical Reader and UID Acquisition
+`AdvNFC-Reader-Agent/03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md`
 
-The reader agent runs on a Raspberry Pi with an attached ACS ACR122U. It uses the external `libnfc` tool `nfc-list` and extracts the NFCID1 using the captured AWK expression, producing an uppercase UID.
+AdvNFC consumes only the resulting configured Home Assistant reader-sensor
+state. During the candidate coexistence period, the provider contract retains
+the legacy `assistive/nfc/pi-nfc-02/last_uid` path for `pi-nfc-02` while
+replacement/test readers use `advnfc/<reader>/last_uid`. MQTT broker and
+network transport remain external infrastructure.
 
-The reader identity defaults to `hostname -s`. The captured `pi-nfc-02` runtime uses:
-
-- polling interval: 0.20 seconds;
-- post-send debounce: 0.80 seconds;
-- same-card suppression: do not re-send the same UID while continuously present;
-- reset rule: clear the remembered UID after eight consecutive empty polls.
-
-### Reader Output
-
-The MQTT publication is governed by:
-
-`03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md`
-
-For each newly accepted UID, the ASTV-257 candidate publishes retained MQTT state on `advnfc/<reader>/last_uid` containing the raw uppercase UID.
-
-The deployed `pi-nfc-02` reader is not upgraded by ASTV-257 and remains on `assistive/nfc/pi-nfc-02/last_uid` until physical retirement. Home Assistant therefore supports both reader-specific paths during coexistence, with each physical reader publishing on only one namespace. The migration-era Home Assistant webhook and generic MQTT event remain removed.
-
-### Reader-Agent Deployment Boundary
-
-AdvNFC owns the reader-agent source and its systemd/service configuration. Raspberry Pi OS, USB/platform behavior, the ACR122U hardware, `libnfc`, network transport, and MQTT broker remain external dependencies.
-
-Deployment-specific configuration is supplied outside source control. The MQTT password is not stored in the repository.
-
-### Reader-Agent Runtime Profiles
-
-ASTV-258 separates environment-specific configuration from reader-agent code. Named schema-v1 YAML profiles are node-local under `/etc/advnfc/profiles`, with `/etc/advnfc/active-profile.yaml` as the single authoritative selector.
-
-A profile contains non-secret MQTT host, port, username, credential reference, the governed `advnfc/{reader}/last_uid` topic pattern, and an optional reader identity override. The MQTT password is resolved separately from `/etc/advnfc/secrets/<credential_ref>.env`.
-
-The `advnfc-profile` management command provides `list`, `status`, `validate`, and `switch`. Switching validates the candidate profile and secret before activation, changes the selector atomically, restarts the reader service, verifies activation, and restores the previous profile if activation fails.
-
-Profiles do not control retained behavior, QoS, UID semantics, polling, debounce, reset behavior, tag meaning, or downstream ASTV behavior. Those remain governed by the reader code and interfaces.
-
-### Reader-Agent Packaging and Update Model
-
-ASTV-255 establishes the target deployment model for the Raspberry Pi reader agent.
-
-The governed software unit is a versioned Debian package named `advnfc-reader-agent`. The package is built from the governed repository source and is intended to be distributed initially as a versioned GitHub Release artefact. An APT repository is not required for the initial deployment model and may be introduced later if reader-node scale or update frequency justifies it.
-
-The package owns:
-
-- `/opt/advnfc/reader_agent/advnfc_reader_agent.sh`;
-- `/opt/advnfc/reader_agent/VERSION`;
-- `/lib/systemd/system/advnfc-reader-agent.service`;
-- `/lib/udev/rules.d/99-advnfc-acr122u.rules`;
-- `/usr/local/sbin/advnfc-reader-agent-check`;
-- `/usr/local/sbin/advnfc-reader-agent-init`;
-- `/usr/local/sbin/advnfc-profile`; and
-- non-secret profile and credential-placeholder examples beneath
-  `/usr/share/advnfc/`.
-
-Node-local state is outside package ownership:
-
-- `/etc/advnfc/profiles/**`;
-- `/etc/advnfc/secrets/**`;
-- `/etc/advnfc/active-profile.yaml`;
-- MQTT credentials and node-specific broker values; and
-- any local overrides.
-
-Package installation and upgrade must not overwrite node-local configuration or secrets.
-
-The package creates a dedicated `advnfc` system account and runs the reader service under that identity rather than relying on a host-specific login account. The package also installs an ACR122U udev rule for USB vendor/product `072f:2200` so the service account has a deterministic hardware-access boundary.
-
-Required runtime dependencies are declared by the Debian package and installed through the operating-system package manager. The initial dependency set includes the NFC and MQTT client tooling required by the governed reader agent plus the utilities used for deterministic readiness checks.
-
-A fresh package install enables but does not start the reader service before node-local configuration exists. An existing active installation is restarted after an upgrade so the new governed software version becomes active while preserving the external configuration.
-
-The installed software identity is recorded in `/opt/advnfc/reader_agent/VERSION`, including both package version and source Git commit. This provides traceability from a reader node back to the governed repository/release.
-
-`advnfc-reader-agent-check` is the mandatory readiness mechanism before first service start and after package changes. It checks:
-
-- required commands;
-- the dedicated service account;
-- presence of node-local configuration and replacement of the example MQTT password;
-- detection of the ACR122U USB device;
-- successful `nfc-list` communication while running as the same `advnfc` service identity;
-- service enabled/active state as operational diagnostics.
-
-Rollback uses a previously retained governed `.deb` artefact installed explicitly with package-manager downgrade support. Uninstall removes governed software/service ownership while deliberately preserving `/etc/advnfc/`.
-
-This packaging model does not alter MQTT topic/payload semantics, tag meaning, or the downstream AdvNFC/ASTV boundary. Those remain governed independently.
-
-### Authoritative source and deployment routes
+## Authoritative source and deployment routes
 
 The Home Assistant integration is distributed through HACS from the sole
 authoritative root source `custom_components/advnfc/**`. The canonical
@@ -132,11 +55,6 @@ operator-selected configuration unit beneath
 `04_Implementation/haos/source/config/**`. The integration's required
 top-level `advnfc:` activation remains an operator-managed entry in target
 `/config/configuration.yaml`.
-
-Reader-agent package-owned payload mirrors installed filesystem paths beneath
-`04_Implementation/rpi_os/source/**`. Debian build and package-metadata
-machinery is under `04_Implementation/rpi_os/packaging/deb/**`. Node-local
-`/etc/advnfc/**` state is intentionally outside package source and ownership.
 
 ## NFC Entry and Tag-to-Intent Resolution
 
@@ -267,10 +185,8 @@ AdvNFC does not reproduce or alter that precedence.
 
 | Dependency | Type | Consumer or relationship |
 |---|---|---|
-| ACR122U + Raspberry Pi platform | External hardware/platform | Provides physical NFC reads to the governed reader-agent software |
-| `libnfc` / `nfc-list` | External runtime dependency | Produces NFCID1 input consumed by the reader agent |
-| AdvNFC reader agent | AdvNFC-owned software | Acquires UID, applies captured suppression/reset behavior, and emits the retained per-reader MQTT state |
-| MQTT broker / network transport | External infrastructure | Carries reader-agent MQTT publications defined by `ADVNFC_READER_EVENT_MQTT_INTERFACE.md` to Home Assistant |
+| AdvNFC Reader Agent | External product | Publishes retained per-reader MQTT state under `AdvNFC-Reader-Agent/03_Contracts/ADVNFC_READER_EVENT_MQTT_INTERFACE.md` |
+| MQTT broker / network transport | External infrastructure | Carries provider-owned reader-agent MQTT publications to Home Assistant |
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
 | `advnfc_tag_mapping.yaml` | Data source | Closed schema-v1 candidate loaded and validated into one immutable active AdvNFC mapping snapshot |
 | ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
@@ -313,4 +229,7 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 
 ASTV begins at the provider-owned Intent Invocation boundary.
 
-ASTV-249 established the AdvNFC reader-agent production baseline. ASTV-257 changes are validated only on the separate replacement/test reader; `pi-nfc-02` remains frozen on the legacy namespace until physical retirement.
+AdvNFC owns only the Home Assistant path listed above. AdvNFC Reader Agent owns
+the upstream reader runtime and publication boundary; ASTV owns downstream
+intent interpretation and execution after the provider-owned Intent Invocation
+boundary.

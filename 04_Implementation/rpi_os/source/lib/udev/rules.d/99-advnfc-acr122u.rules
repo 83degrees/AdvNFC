@@ -1,3 +1,0 @@
-# Run after the distro/libnfc 93-pn53x.rules entry and make the AdvNFC
-# ownership assignment final for the dedicated service account.
-SUBSYSTEM=="usb", ATTR{idVendor}=="072f", ATTR{idProduct}=="2200", MODE:="0660", GROUP:="advnfc"
