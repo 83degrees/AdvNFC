@@ -11,10 +11,9 @@ The governed diagram at `Diagrams/ADVNFC_ARCHITECTURE.drawio` represents this se
 The Home Assistant portion of this architecture is the deployed AdvNFC runtime established by the completed ASTV Phase 0 carve-out. ASTV now begins at the provider-owned Intent Invocation boundary.
 
 The schema-v1 tag-mapping loader, immutable snapshot, normalized typed-action
-record, and Select Tag Action component described below are the proposed
-ASTV-299 target state. Until the accepted ASTV-299 candidate is deployed and
-validated through the WF-01 Beta route, production continues to use the current
-direct tag-to-intent mapping path.
+record, and Select Tag Action component are the deployed AdvNFC baseline.
+ASTV-324 adds a provider-owned, read-only administration boundary over that
+same active snapshot without changing runtime tag routing.
 
 ASTV-322 transferred reader-agent source, packaging, deployment and provider-contract authority to the separately governed AdvNFC Reader Agent product. AdvNFC now begins at configured Home Assistant reader-event state and consumes the provider-owned AdvNFC Reader Event MQTT Interface.
 
@@ -136,6 +135,24 @@ registry, and exposes the active schema version and mapping count as runtime
 capability state. A successful mapping activation dispatches an update to the
 entity; a failed reload leaves the prior snapshot and sensor state unchanged.
 
+### AdvNFC Administration Read Boundary
+
+The Home Assistant integration exposes the provider-owned interface documented
+at `03_Contracts/ADVNFC_ADMINISTRATION_READ_INTERFACE.md`. Four response-only
+services provide capability discovery, normalized collection reads, canonical
+UID lookup, and typed-action target query.
+
+All results are projections of the active immutable validated snapshot.
+Consumers never read `advnfc_tag_mapping.yaml`, and no administration
+operation writes, activates, or reloads mapping state. Responses carry
+independent administration-interface and tag-mapping-schema versions. Get
+operations distinguish invalid queries from missing UIDs; valid queries with no
+matches return an empty collection.
+
+The schema-v1 query route supports `astv_intent` plus normalized
+`intent_id`. AdvNFC owns query and normalization semantics but does not read
+the ASTV intent catalogue or validate cross-product existence.
+
 ### AdvNFC - Select Tag Action
 
 - Entity: `script.advnfc_select_tag_action`
@@ -190,6 +207,7 @@ AdvNFC does not reproduce or alter that precedence.
 | `sensor.pi_nfc_02_last_uid`, `sensor.pi_nfc_99_last_uid` | MQTT-fed Home Assistant sensors | State-change inputs evaluated by AdvNFC - Tag Listener; transitions to or from `unknown` or `unavailable` are excluded at the Home Assistant trigger boundary before UID Gateway invocation |
 | `advnfc_tag_mapping.yaml` | Data source | Closed schema-v1 candidate loaded and validated into one immutable active AdvNFC mapping snapshot |
 | ASTV Intent Invocation interface | External product contract | AdvNFC invokes `script.astv_intent_gateway` with `intent_id`, optional `input_area_override`, and optional `trigger_entity` |
+| AdvNFC Administration Read Interface | Provider-owned contract | Future management consumers read normalized active mappings without access to YAML internals |
 
 ## Interface Naming and Return Boundaries
 
@@ -202,6 +220,11 @@ Exact established names are preserved where they describe the existing Phase 0 b
 - `action.type`
 - `intent_id`
 - `input_area_override`
+- `interface_id`
+- `interface_version`
+- `tag_mapping_schema_version`
+- `supported_action_types`
+- `error.code`
 
 A caller's `response_variable` name describes how that caller captures a result. A child's returned payload name describes the child's own interface. These names are not renamed merely for documentary consistency.
 
@@ -226,6 +249,10 @@ The deployed Home Assistant responsibilities are owned by AdvNFC under:
 - `script.advnfc_find_tag_record`
 - `script.advnfc_select_tag_action`
 - `advnfc_tag_mapping.yaml`
+- `advnfc.get_administration_capabilities`
+- `advnfc.list_tag_mappings`
+- `advnfc.get_tag_mapping`
+- `advnfc.query_tag_mappings`
 
 ASTV begins at the provider-owned Intent Invocation boundary.
 

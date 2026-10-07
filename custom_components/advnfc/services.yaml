@@ -7,3 +7,30 @@ find_tag_record:
         text:
 
 reload_tag_mapping: {}
+
+get_administration_capabilities: {}
+
+list_tag_mappings: {}
+
+get_tag_mapping:
+  fields:
+    uid:
+      required: true
+      example: 7AB06354E000
+      selector:
+        text:
+
+query_tag_mappings:
+  fields:
+    action_type:
+      required: true
+      example: astv_intent
+      selector:
+        select:
+          options:
+            - astv_intent
+    intent_id:
+      required: true
+      example: classic_fm
+      selector:
+        text:

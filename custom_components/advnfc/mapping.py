@@ -12,6 +12,10 @@ from typing import Any
 import yaml
 
 SCHEMA_VERSION = 1
+ADMIN_INTERFACE_ID = "advnfc.tag_mapping.administration"
+ADMIN_INTERFACE_VERSION = 1
+SUPPORTED_ACTION_TYPES = ("astv_intent",)
+ADMIN_OPERATIONS = ("capabilities", "list", "get", "query")
 ROOT_FIELDS = frozenset({"tag_mapping_schema_version", "tags"})
 TAG_FIELDS = frozenset({"label", "area_override", "action"})
 ACTION_FIELDS = frozenset({"type", "intent_id"})
@@ -155,7 +159,7 @@ def validate_document(
         action_type = _require_non_blank_string(
             action["type"], f"tags.{uid}.action.type"
         )
-        if action_type != "astv_intent":
+        if action_type not in SUPPORTED_ACTION_TYPES:
             raise TagMappingValidationError(
                 f"tags.{uid}.action.type is unsupported: {action_type}"
             )
@@ -187,10 +191,7 @@ class TagMappingSnapshot:
     def count(self) -> int:
         return len(self.tags)
 
-    def find(self, uid: object) -> dict[str, Any]:
-        record = self.tags.get(normalize_uid(uid))
-        if record is None:
-            return {}
+    def _serialize_record(self, record: Mapping[str, Any]) -> dict[str, Any]:
         response: dict[str, Any] = {
             "uid": record["uid"],
             "label": record["label"],
@@ -199,6 +200,108 @@ class TagMappingSnapshot:
         if "area_override" in record:
             response["area_override"] = record["area_override"]
         return response
+
+    def _administration_base(self) -> dict[str, Any]:
+        return {
+            "interface_id": ADMIN_INTERFACE_ID,
+            "interface_version": ADMIN_INTERFACE_VERSION,
+            "tag_mapping_schema_version": self.schema_version,
+        }
+
+    def _administration_error(
+        self, code: str, message: str, **context: Any
+    ) -> dict[str, Any]:
+        return {
+            **self._administration_base(),
+            "ok": False,
+            **context,
+            "error": {"code": code, "message": message},
+        }
+
+    def find(self, uid: object) -> dict[str, Any]:
+        record = self.tags.get(normalize_uid(uid))
+        return {} if record is None else self._serialize_record(record)
+
+    def administration_capabilities(self) -> dict[str, Any]:
+        return {
+            **self._administration_base(),
+            "ok": True,
+            "supported_action_types": list(SUPPORTED_ACTION_TYPES),
+            "operations": list(ADMIN_OPERATIONS),
+        }
+
+    def administration_list(self) -> dict[str, Any]:
+        mappings = [
+            self._serialize_record(self.tags[uid]) for uid in sorted(self.tags)
+        ]
+        return {
+            **self._administration_base(),
+            "ok": True,
+            "count": len(mappings),
+            "mappings": mappings,
+        }
+
+    def administration_get(self, uid: object) -> dict[str, Any]:
+        canonical_uid = normalize_uid(uid)
+        query = {"uid": canonical_uid}
+        if not canonical_uid or not UID_PATTERN.fullmatch(canonical_uid):
+            return self._administration_error(
+                "invalid_query",
+                "uid must normalize to a non-blank alphanumeric value",
+                query=query,
+            )
+        record = self.tags.get(canonical_uid)
+        if record is None:
+            return self._administration_error(
+                "not_found",
+                f"no active mapping exists for UID {canonical_uid}",
+                query=query,
+            )
+        return {
+            **self._administration_base(),
+            "ok": True,
+            "query": query,
+            "mapping": self._serialize_record(record),
+        }
+
+    def administration_query(
+        self, action_type: object, intent_id: object
+    ) -> dict[str, Any]:
+        normalized_action_type = str(action_type).strip().lower()
+        normalized_intent_id = normalize_intent_id(intent_id)
+        query = {
+            "action": {
+                "type": normalized_action_type,
+                "intent_id": normalized_intent_id,
+            }
+        }
+        if normalized_action_type not in SUPPORTED_ACTION_TYPES:
+            return self._administration_error(
+                "invalid_query",
+                f"unsupported action_type: {normalized_action_type or '<blank>'}",
+                query=query,
+            )
+        if not normalized_intent_id or not INTENT_ID_PATTERN.fullmatch(
+            normalized_intent_id
+        ):
+            return self._administration_error(
+                "invalid_query",
+                "intent_id must normalize to lowercase underscore identifier form",
+                query=query,
+            )
+        matches = [
+            self._serialize_record(self.tags[uid])
+            for uid in sorted(self.tags)
+            if self.tags[uid]["action"]["type"] == normalized_action_type
+            and self.tags[uid]["action"]["intent_id"] == normalized_intent_id
+        ]
+        return {
+            **self._administration_base(),
+            "ok": True,
+            "query": query,
+            "count": len(matches),
+            "mappings": matches,
+        }
 
 
 class TagMappingStore:
@@ -224,3 +327,22 @@ class TagMappingStore:
         if self._active is None:
             return {}
         return self._active.find(uid)
+
+    def _active_snapshot(self) -> TagMappingSnapshot:
+        if self._active is None:
+            raise RuntimeError("AdvNFC tag mapping has not been activated")
+        return self._active
+
+    def administration_capabilities(self) -> dict[str, Any]:
+        return self._active_snapshot().administration_capabilities()
+
+    def administration_list(self) -> dict[str, Any]:
+        return self._active_snapshot().administration_list()
+
+    def administration_get(self, uid: object) -> dict[str, Any]:
+        return self._active_snapshot().administration_get(uid)
+
+    def administration_query(
+        self, action_type: object, intent_id: object
+    ) -> dict[str, Any]:
+        return self._active_snapshot().administration_query(action_type, intent_id)
