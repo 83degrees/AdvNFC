@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.13.0
+**Governance version:** 11.14.0
 **Status:** Approved
-**Approval tag:** `governance-v11.13.0`
-**Approval date:** 2026-10-06
+**Approval tag:** `governance-v11.14.0`
+**Approval date:** 2026-10-08
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -151,6 +151,7 @@ Its authoritative central artefacts include:
 - `/Standards/Product/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 - `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md`
+- `/Standards/Product/PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md`
 - `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md`
 - `/Templates/PROJECT_PROFILE.template.md`
@@ -210,6 +211,7 @@ The centrally governed standards are:
 | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
 | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | Product-applicable | `/Standards/Product/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` | `00_Governance/01_Central/01_Standards/HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | `PRODUCTION_EVIDENCE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCTION_EVIDENCE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCTION_EVIDENCE_STANDARD.md` |
+| `PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md` | Product-applicable | `/Standards/Product/PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md` | `00_Governance/01_Central/01_Standards/PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md` |
 | `GOVERNANCE_LIFECYCLE_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_LIFECYCLE_STANDARD.md` | — |
 | `GOVERNANCE_DISTRIBUTION_STANDARD.md` | Central-only | `/Standards/Central/GOVERNANCE_DISTRIBUTION_STANDARD.md` | — |
 
@@ -305,6 +307,7 @@ Different authoritative sources answer different questions.
 | Operator-managed transfer, validation, evidence and rollback for governed Home Assistant configuration | `HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md` |
 | HACS deployment, Beta identity, stable release, validation and rollback for governed Home Assistant custom integrations | `HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md` |
 | Production-evidence acquisition, freshness, retention, integrity and reuse practice | `PRODUCTION_EVIDENCE_STANDARD.md` |
+| Common external administration-interface discovery, outcomes, state, compatibility and cross-product interoperability | `PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md` |
 | Central Governance release/provenance lifecycle mechanics | `GOVERNANCE_LIFECYCLE_STANDARD.md` |
 | Central Governance downstream distribution protocol | `GOVERNANCE_DISTRIBUTION_STANDARD.md` |
 | Cross-product interface | Provider-owned authoritative contract |
@@ -2867,7 +2870,8 @@ The standard structure is:
 │   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_CONFIG_DEPLOYMENT_STANDARD.md
 │   │   ├── HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md
-│   │   └── PRODUCTION_EVIDENCE_STANDARD.md
+│   │   ├── PRODUCTION_EVIDENCE_STANDARD.md
+│   │   └── PRODUCT_ADMINISTRATION_INTERFACE_STANDARD.md
 │   ├── 02_Templates/
 │   │   ├── PROJECT_PROFILE.template.md
 │   │   ├── HOME_ASSISTANT_APP_DEPLOYMENT_RUNBOOK.template.md
