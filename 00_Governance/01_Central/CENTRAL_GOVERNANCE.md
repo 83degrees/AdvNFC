@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.14.0
+**Governance version:** 11.15.0
 **Status:** Approved
-**Approval tag:** `governance-v11.14.0`
-**Approval date:** 2026-10-08
+**Approval tag:** `governance-v11.15.0`
+**Approval date:** 2026-10-10
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -2293,6 +2293,16 @@ Where an authoritative governed source makes execution of a maintained automated
 The existence of a test suite, script, workflow or CI configuration does not by itself make execution mandatory. The requirement applies only when the suite is an applicable governed acceptance dependency for the work being assessed.
 
 Governance requires the outcome, not a particular platform. A compliant execution route may be a repository CI workflow, checked-in runner or script, reproducible container or development-environment definition, or another deterministic version-controlled method that permits the required suite to be invoked without reconstructing an undocumented ad-hoc environment.
+
+Where this narrow acceptance-dependency trigger applies, CI is the normally preferred execution route because it can execute the relevant suite automatically against pull-request candidates and retain pass/fail evidence tied to the tested candidate commit. This preference does not make CI, GitHub Actions or any other platform mandatory, and it does not alter applicable human acceptance, merge, release or deployment gates.
+
+A CI route should preferably run the relevant tests when a pull request is opened or updated, with proportionate trigger, concurrency or other controls that avoid unnecessary or redundant execution. A test-only workflow must not require access to production Home Assistant or production credentials and should use only the permissions needed to run and report the tests. An automated result does not itself approve, merge, release or deploy a change.
+
+Useful existing version-controlled runners, scripts or reproducible environments should normally be invoked by CI rather than discarded. Their existence alone is not sufficient reason to avoid CI; genuinely redundant wrappers may be retired selectively where doing so does not weaken reproducibility or evidence.
+
+The product owns its execution-route implementation and any product-local exception rationale. A documented non-CI route remains compliant where the incremental benefit of CI is outweighed by technical unsuitability, material cost, security or infrastructure burden, or another concrete rationale, provided the reproducibility obligation in this section remains satisfied. An ordinary compliant exception does not require separate central approval unless it conflicts with another mandatory Governance control.
+
+For a new product, the CI preference applies when its first maintained suite becomes a governed acceptance dependency. Existing products consider it during normal product evolution. Existing compliant execution routes remain valid in the meantime; the mere existence of a suite, script or workflow creates neither an immediate migration requirement nor separate product work.
 
 The route must identify, as applicable:
 
