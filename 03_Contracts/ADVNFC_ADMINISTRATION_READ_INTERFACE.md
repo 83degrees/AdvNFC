@@ -6,7 +6,7 @@
 - Interface ID: `advnfc.tag_mapping.administration`
 - Interface version: `3`
 - Status: candidate
-- Source issues: `ASTV-324`, `ASTV-325`, `ASTV-326`, `ASTV-337`
+- Source issues: `ASTV-324`, `ASTV-325`, `ASTV-326`, `ASTV-337`, `ASTV-338`
 
 This is the provider-owned boundary for reading, validating, persisting, and
 activating the AdvNFC tag-mapping model. Consumers use normalized records
@@ -34,6 +34,46 @@ The interface uses response-only Home Assistant services:
 Validation calls do not write or activate state. Create, update, and delete
 replace persisted state but do not activate it. Reload is the sole
 provider-owned managed activation operation.
+
+## Authorization policy
+
+AdvNFC distinguishes read authority from manage authority at its Home Assistant
+service boundary:
+
+| Authority | Operations |
+|---|---|
+| Runtime/read | `find_tag_record`, capabilities, status, list, get, and query |
+| Manage | validate document, validate record, create, update, delete, and activate/reload |
+
+Runtime/read operations retain the ordinary Home Assistant service-call
+authorization path. Authenticated Home Assistant users who can call services
+may use the advertised administration reads; trusted Home Assistant
+system-context calls with no `user_id` remain supported. `find_tag_record` is a
+runtime lookup rather than an administration mutation and remains callable
+through the ordinary service path.
+
+Manage operations are registered through Home Assistant's supported
+admin-service mechanism. A user-context call must resolve to a Home Assistant
+administrator. Unknown-user and non-administrator calls are rejected by Home
+Assistant before the AdvNFC handler runs, so they do not inspect the area
+registry, read or validate the persisted mapping, mutate it, or activate it.
+Trusted Home Assistant system-context calls with no `user_id` remain permitted
+by that mechanism.
+
+An authorization rejection is a platform-raised service-call failure, not a
+normal AdvNFC response payload. Its common Product Administration Interface
+category is `permission_denied`; it therefore does not add or replace an
+AdvNFC `error.code` in interface v3. Consumers must handle the Home Assistant
+authorization failure separately from a returned `ok: false` provider outcome.
+
+This enforcement may newly reject an undocumented caller that invokes a manage
+operation with a non-administrator user context. No current consumer is
+declared for the candidate interface, and the repository contains no automation
+that invokes `reload_tag_mapping`; the deployment runbook is its only local
+caller reference. A future manager must use an administrator user context or an
+approved trusted Home Assistant system context. Because no supported v3
+consumer behavior is withdrawn and the response wire contract is unchanged,
+this enforcement does not require an interface-major transition.
 
 ## Common identity and normalized record
 
@@ -173,10 +213,10 @@ message text.
 
 The remaining Standard categories have these current dispositions:
 
-- `permission_denied` is not currently produced because interface v3 does not
-  yet enforce separate read/manage authorization. `ASTV-338` owns that
-  independent runtime and contract remediation; planned behavior is not an
-  emitted v3 code.
+- `permission_denied` is represented by Home Assistant's platform-raised
+  authorization failure for a denied manage operation. It is not an emitted
+  AdvNFC response payload or provider `error.code`; the provider handler does
+  not run for the rejected call.
 - `unsupported_operation` is not currently produced as an AdvNFC error code.
   Consumers discover support through the capabilities operation and must not
   invoke absent operations. An unsupported query `action_type` is
@@ -197,5 +237,5 @@ branching remain unchanged. Declared consumers are future AdvNFC management
 consumers, so there is no existing declared consumer migration. New consumers
 may normalize outcomes with this table while continuing to branch on the
 provider code when AdvNFC-specific detail is required. The interface remains
-`candidate`; this mapping does not by itself approve the contract or claim full
-conformance while the separately governed authorization gap remains open.
+`candidate`; this mapping does not by itself approve the contract or complete
+the contract's governed approval path.

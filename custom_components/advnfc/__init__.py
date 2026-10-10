@@ -15,6 +15,7 @@ from homeassistant.core import (
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import discovery
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
 from .mapping import TagMappingStore, TagMappingValidationError
@@ -158,7 +159,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         find_tag_record,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_RELOAD_TAG_MAPPING,
         reload_tag_mapping,
@@ -194,31 +196,36 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         query_tag_mappings,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_VALIDATE_TAG_MAPPING,
         validate_tag_mapping,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_VALIDATE_TAG_MAPPING_RECORD,
         validate_tag_mapping_record,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_CREATE_TAG_MAPPING,
         create_tag_mapping,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_UPDATE_TAG_MAPPING,
         update_tag_mapping,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_DELETE_TAG_MAPPING,
         delete_tag_mapping,

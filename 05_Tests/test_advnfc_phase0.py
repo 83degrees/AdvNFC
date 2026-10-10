@@ -97,8 +97,8 @@ def test_capability_sensor_updates_after_successful_mapping_activation():
 
 def test_administration_interface_has_distinct_minor_version():
     manifest = json.loads(_text(MANIFEST))
-    assert manifest["version"] == "1.3.0"
-    assert "`1.3.0`" in _text(HACS_DEPLOYMENT)
+    assert manifest["version"] == "1.4.0"
+    assert "`1.4.0`" in _text(HACS_DEPLOYMENT)
 
 
 def test_tag_mapping_preserves_existing_phase_zero_records():
