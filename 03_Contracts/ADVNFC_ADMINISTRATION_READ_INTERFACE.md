@@ -6,7 +6,7 @@
 - Interface ID: `advnfc.tag_mapping.administration`
 - Interface version: `3`
 - Status: candidate
-- Source issues: `ASTV-324`, `ASTV-325`, `ASTV-326`
+- Source issues: `ASTV-324`, `ASTV-325`, `ASTV-326`, `ASTV-337`
 
 This is the provider-owned boundary for reading, validating, persisting, and
 activating the AdvNFC tag-mapping model. Consumers use normalized records
@@ -138,3 +138,64 @@ Consumers branch on `error.code`, not `message`. Compatible additions may add
 optional fields. Removing or changing an operation, field, action type, error
 code, normalization meaning, revision semantics, or atomicity guarantee
 requires an interface-version change and governed consumer-impact assessment.
+
+### Common error-category compatibility mapping
+
+Interface v3 predates the Product Administration Interface Standard and retains
+the provider-specific `error.code` values above as its wire contract. It does
+not add a common-category response field. A consumer that needs the Standard's
+common taxonomy derives it deterministically from the failed operation and the
+provider code, in this order:
+
+1. A failed `activate` operation maps to `activation_failed`, whether its
+   retained provider code is `invalid_candidate`, `duplicate_uid`, or
+   `persisted_state_unavailable`. The provider code continues to identify the
+   root cause while `activation_failed` identifies the failed transaction and
+   retained prior active state.
+2. Every other failed operation uses the following mapping.
+
+| Provider `error.code` | Common category | Applies to | Compatibility meaning |
+|---|---|---|---|
+| `invalid_query` | `invalid_request` | Get and query | The input is malformed or violates the supported operation contract. An unadvertised `action_type` is an invalid parameter to the advertised query operation; it is not an unsupported operation. |
+| `invalid_candidate` | `invalid_request` | Status, validation, create, update, and delete | The submitted or persisted record, document, UID, schema, or complete resulting candidate violates the AdvNFC contract. The activation override above applies when this code is returned by `activate`. |
+| `duplicate_uid` | `invalid_request` | Status and validation | The submitted or persisted complete candidate violates UID uniqueness. The activation override above applies when this code is returned by `activate`. |
+| `not_found` | `not_found` | Get, update, and delete | The requested active or persisted AdvNFC mapping does not exist. A query with no matches remains a successful empty result. |
+| `already_exists` | `invalid_request` | Create | The create request violates the requirement that its canonical UID not already exist. |
+| `stale_revision` | `stale_revision` | Create, update, and delete | The guarded mutation does not match the current persisted revision and does not write. |
+| `persisted_state_unavailable` | `dependency_unavailable` | Status, create, update, and delete | The advertised operation depends on the provider's persisted-state/platform capability, which cannot currently be read or validated. The activation override above applies when this code is returned by `activate`. |
+| `atomic_write_failed` | `dependency_unavailable` | Create, update, and delete | The provider's atomic persistence/platform capability failed before the authoritative file was replaced. |
+
+The mapping is exhaustive for interface v3's current provider codes. Operation
+context is part of the mapping because the same retained root-cause code can
+describe ordinary input validation or failure of the distinct activation
+transaction. Consumers must not infer the common category from diagnostic
+message text.
+
+The remaining Standard categories have these current dispositions:
+
+- `permission_denied` is not currently produced because interface v3 does not
+  yet enforce separate read/manage authorization. `ASTV-338` owns that
+  independent runtime and contract remediation; planned behavior is not an
+  emitted v3 code.
+- `unsupported_operation` is not currently produced as an AdvNFC error code.
+  Consumers discover support through the capabilities operation and must not
+  invoke absent operations. An unsupported query `action_type` is
+  `invalid_query` / `invalid_request`, while an unknown Home Assistant service
+  is outside this response contract.
+- `dependency_unavailable` is produced only through the compatibility mapping
+  for `persisted_state_unavailable` and `atomic_write_failed`. AdvNFC performs
+  structural ASTV-reference validation and no administration operation depends
+  on live ASTV availability, so ASTV unavailability does not produce this
+  category.
+- `activation_failed` is produced through the operation-context mapping above;
+  the wire response retains the root provider code and the prior valid active
+  snapshot.
+
+This compatibility profile is additive documentation only. Existing response
+fields, provider codes, interface version, operation behavior, and consumer
+branching remain unchanged. Declared consumers are future AdvNFC management
+consumers, so there is no existing declared consumer migration. New consumers
+may normalize outcomes with this table while continuing to branch on the
+provider code when AdvNFC-specific detail is required. The interface remains
+`candidate`; this mapping does not by itself approve the contract or claim full
+conformance while the separately governed authorization gap remains open.
