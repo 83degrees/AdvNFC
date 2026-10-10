@@ -1,0 +1,5 @@
+# Direct test dependencies use validated lower bounds and exclude the next major
+# release. Update these bounds through a reviewed PR that runs the full suite.
+# Transitive dependencies are intentionally not locked by this file.
+pytest>=9.1.1,<10
+PyYAML>=6.0.3,<7
