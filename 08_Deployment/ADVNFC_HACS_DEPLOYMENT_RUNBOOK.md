@@ -7,7 +7,7 @@ This runbook applies the governed route:
 `haos_integration -> hacs -> HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 
 The authoritative integration source is `custom_components/advnfc/**`; its
-stable version is the `version` in `manifest.json`, currently `1.3.0`. This
+stable version is the `version` in `manifest.json`, currently `1.4.0`. This
 runbook does not authorise Beta deployment, stable promotion, production
 deployment, or rollback. Once explicit stable-promotion authority exists,
 stable tag and GitHub Release creation follow through the approved HACS
