@@ -19,6 +19,7 @@ from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
 from .mapping import TagMappingStore, TagMappingValidationError
+from .panel import async_register_frontend
 
 DOMAIN = "advnfc"
 SERVICE_FIND_TAG_RECORD = "find_tag_record"
@@ -231,6 +232,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         delete_tag_mapping,
         supports_response=SupportsResponse.ONLY,
     )
+    await async_register_frontend(hass)
     hass.async_create_task(
         discovery.async_load_platform(hass, Platform.SENSOR, DOMAIN, {}, config)
     )
