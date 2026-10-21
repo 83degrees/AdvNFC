@@ -1,7 +1,7 @@
-# **Version:** v1.1.0
+# **Version:** v1.2.0
 # **Status:** Approved
-# **Approval tag:** `central-gov-hook-v1.1.0`
-# **Approval date:** 2026-09-27
+# **Approval tag:** `central-gov-hook-v1.2.0`
+# **Approval date:** 2026-10-21
 
 name: Central Governance
 
@@ -21,16 +21,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Determine persistent beta availability
-        id: beta
-        shell: bash
-        run: |
-          if git ls-remote --exit-code --heads origin refs/heads/beta >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Capture changed paths
         shell: bash
         run: |
@@ -39,12 +29,36 @@ jobs:
             "${{ github.event.pull_request.head.sha }}" \
             > "$RUNNER_TEMP/central-gov-changed-files.txt"
 
-      - name: Run central governance checks
+      - name: Run base-controlled central governance checks
         shell: bash
         run: |
-          python "00_Governance/01_Central/03_Tooling/central_gov_checks.py" \
+          checker_path="00_Governance/01_Central/03_Tooling/central_gov_checks.py"
+          trusted_checker="$RUNNER_TEMP/central_gov_checks.py"
+          git show "${{ github.event.pull_request.base.sha }}:$checker_path" > "$trusted_checker"
+
+          beta_exists=false
+          beta_sha=""
+          beta_ref="refs/heads/beta"
+          if beta_line="$(git ls-remote --exit-code --heads origin "$beta_ref")"; then
+            beta_before="${beta_line%%[[:space:]]*}"
+            git fetch --no-tags origin "+$beta_ref:refs/remotes/origin/beta"
+            beta_fetched="$(git rev-parse --verify refs/remotes/origin/beta)"
+            beta_line="$(git ls-remote --exit-code --heads origin "$beta_ref")"
+            beta_after="${beta_line%%[[:space:]]*}"
+            if [[ "$beta_before" != "$beta_fetched" || "$beta_fetched" != "$beta_after" ]]; then
+              echo "Persistent beta identity changed while the governance check was acquiring evidence." >&2
+              exit 1
+            fi
+            beta_exists=true
+            beta_sha="$beta_fetched"
+          fi
+
+          python "$trusted_checker" \
             --repository "${{ github.repository }}" \
             --head "${{ github.head_ref }}" \
+            --head-repository "${{ github.event.pull_request.head.repo.full_name }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
             --base "${{ github.base_ref }}" \
-            --beta-exists "${{ steps.beta.outputs.exists }}" \
+            --beta-exists "$beta_exists" \
+            --beta-sha "$beta_sha" \
             --changed-files-file "$RUNNER_TEMP/central-gov-changed-files.txt"

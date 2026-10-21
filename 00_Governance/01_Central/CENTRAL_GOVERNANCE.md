@@ -1,9 +1,9 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.15.0
+**Governance version:** 11.16.0
 **Status:** Approved
-**Approval tag:** `governance-v11.15.0`
-**Approval date:** 2026-10-10
+**Approval tag:** `governance-v11.16.0`
+**Approval date:** 2026-10-21
 
 **Authority of appendices:**  
 All appendices form an integral part of this governance book and carry the same authority as the main body unless an appendix explicitly states otherwise. Agents must apply applicable appendix requirements together with the relevant body sections and must not treat appendices as optional or supplementary guidance.
@@ -1217,7 +1217,11 @@ For normal `WF-01` runtime-changing work, the reviewed issue PR targets persiste
 
 Before substantive review begins at G2, the actual PR base must be independently verified against the workflow-to-Git route recorded for the issue. A PR that does not target the branch required by its selected workflow fails G2 and must not be treated as review-ready.
 
-Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate and executes that projected checker locally. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. For the mechanical routing control, a PR that changes any path under canonical `04_Implementation/**`, the approved HACS-native root `custom_components/**` exception, or transitionally supported legacy `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. A non-runtime PR may target `main` without being blocked solely by this routing check. Where product-root `repository.yaml` identifies a Home Assistant App repository, the checker also confirms that recursively discoverable App configuration exists beneath canonical `04_Implementation/haos/source/apps/**` or transitionally supported legacy `04_Source/**`, and that no duplicate root-level App package is introduced.
+Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate but executes the checker bytes read from the pull request's immutable base commit, so candidate changes cannot weaken the control being applied to that candidate. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy.
+
+For the mechanical routing control, a PR that changes any path under canonical `04_Implementation/**`, the approved HACS-native root `custom_components/**` exception, or transitionally supported legacy `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. The only mechanical exception is a promotion candidate targeting `main` whose immutable pull-request head SHA exactly equals the freshly fetched persistent `beta` SHA from the same upstream repository. Branch names, pull-request text, labels, flags and claimed approval evidence do not establish promotion identity. Missing, malformed, divergent, cross-repository or changing Beta identity fails closed. Exact commit equality also excludes additional commits or content from this promotion-only route. A non-runtime PR may target `main` without being blocked solely by this routing check.
+
+This mechanical promotion result proves repository candidate identity only. It does not prove Beta success, human G5/G6 acceptance or stable-promotion authority, and it does not replace required review, status checks, Linear evidence or merge controls. Those remain separate Governance gates. Where product-root `repository.yaml` identifies a Home Assistant App repository, the checker also confirms that recursively discoverable App configuration exists beneath canonical `04_Implementation/haos/source/apps/**` or transitionally supported legacy `04_Source/**`, and that no duplicate root-level App package is introduced.
 
 This path-based check is an enforcement mechanism for the standard repository model, not a substitute for correct semantic classification. Runtime-affecting implementation placed outside the recognised canonical, approved-exception or transition paths remains a repository-model violation and must not be treated as non-runtime merely because the routing check did not classify its path as runtime implementation.
 
@@ -1255,6 +1259,8 @@ Where the applicable workflow profile does not require Beta, the issue PR normal
 After a `WF-01` candidate successfully completes Beta, the same tested runtime-affecting content is promoted from `beta` to `main` before the issue reaches `Done`.
 
 Promotion does not require a second substantive human review where the accepted and Beta-tested content is unchanged. It does require integrity evidence sufficient to prove that the runtime-affecting content incorporated into `main` is equivalent to the content that passed Beta.
+
+Where a pull request is used for exact-commit promotion, the centrally managed routing check permits a runtime-affecting pull request to target `main` only when its immutable candidate head SHA exactly equals the freshly verified same-repository persistent `beta` SHA. This is mechanical identity evidence, not promotion authority. Human Beta acceptance and explicit stable-promotion authority must already exist through the applicable workflow record before merge.
 
 Prefer a fast-forward or other promotion mechanism that preserves exact candidate identity where practical. Where Git ancestry or intervening non-runtime `main` changes require a different commit identity, equivalence may be established using tree, file/content hashes, artifact identity or another immutable comparison appropriate to the affected runtime content.
 
