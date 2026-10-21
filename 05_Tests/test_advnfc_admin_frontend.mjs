@@ -7,6 +7,10 @@ const {
   AdvNfcAdapterError,
   AdvNfcProviderAdapter,
   commonErrorCategory,
+  draftFromMapping,
+  filterAndSortMappings,
+  mappingFromDraft,
+  normalizeUid,
 } = await import("../custom_components/advnfc/frontend/advnfc-administration-panel.mjs");
 
 function hassWith(handler, isAdmin = false) {
@@ -220,4 +224,68 @@ test("optional ASTV absence or incompatibility does not disable AdvNFC", async (
     response: { ok: true, interface_id: "other", interface_version: "1.1.0", capabilities: [] },
   })));
   assert.equal((await incompatible.listAstvIntentTargets()).state, "incompatible");
+});
+
+test("editor draft maps exactly to the closed schema-v1 provider record", () => {
+  assert.deepEqual(mappingFromDraft({
+    uid: " 04aB ",
+    label: " Kitchen radio ",
+    intentId: " RADIO.PLAY ",
+    areaOverride: " kitchen ",
+  }), {
+    uid: "04AB",
+    label: "Kitchen radio",
+    action: { type: "astv_intent", intent_id: "radio.play" },
+    area_override: "kitchen",
+  });
+  assert.deepEqual(mappingFromDraft({ uid: "a1", label: "One", intentId: "one", areaOverride: " " }), {
+    uid: "A1",
+    label: "One",
+    action: { type: "astv_intent", intent_id: "one" },
+  });
+  assert.equal(normalizeUid(" ab-12 "), "AB-12");
+});
+
+test("editor round-trip preserves the provider fields and no excluded fields", () => {
+  const draft = draftFromMapping({
+    uid: "A1",
+    label: "Radio",
+    area_override: "kitchen",
+    action: { type: "astv_intent", intent_id: "radio.play" },
+  });
+  assert.deepEqual(draft, { uid: "A1", label: "Radio", intentId: "radio.play", areaOverride: "kitchen" });
+  assert.deepEqual(Object.keys(mappingFromDraft(draft)).sort(), ["action", "area_override", "label", "uid"]);
+});
+
+test("active list search and sorting cover name, canonical UID, and ASTV target", () => {
+  const mappings = [
+    { uid: "B2", label: "Kitchen", action: { type: "astv_intent", intent_id: "radio.play" } },
+    { uid: "A1", label: "Bedroom", action: { type: "astv_intent", intent_id: "lights.off" } },
+  ];
+  assert.deepEqual(filterAndSortMappings(mappings, "radio", "label").map((m) => m.uid), ["B2"]);
+  assert.deepEqual(filterAndSortMappings(mappings, "a1", "label").map((m) => m.uid), ["A1"]);
+  assert.deepEqual(filterAndSortMappings(mappings, "", "target", "desc").map((m) => m.uid), ["B2", "A1"]);
+});
+
+test("validation and delete use exact provider payloads with refreshed persisted revision", async () => {
+  const calls = [];
+  const adapter = new AdvNfcProviderAdapter(hassWith(async (message) => {
+    calls.push(message);
+    const response = message.service === "get_administration_capabilities"
+      ? capabilities({ operations: [...capabilities().operations, "validate_record", "get"] })
+      : message.service === "get_administration_status"
+        ? { ok: true, active_revision: "active", persisted_revision: "persisted", activation_required: false }
+        : message.service === "validate_tag_mapping_record"
+          ? { ok: true, mapping: message.service_data.mapping }
+          : { ok: true, uid: "A1", active_revision: "active", persisted_revision: "next", activation_required: true };
+    return { context: {}, response };
+  }, true));
+  const mapping = mappingFromDraft({ uid: "a1", label: "One", intentId: "one" });
+  await adapter.validateRecord(mapping);
+  await adapter.guardedMutation("delete", { uid: "A1" });
+  assert.deepEqual(calls.find((call) => call.service === "validate_tag_mapping_record").service_data, { mapping });
+  assert.deepEqual(calls.find((call) => call.service === "delete_tag_mapping").service_data, {
+    uid: "A1",
+    expected_revision: "persisted",
+  });
 });

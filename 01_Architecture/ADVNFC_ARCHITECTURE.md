@@ -190,8 +190,8 @@ AdvNFC owns one Home Assistant custom panel bundled inside the existing
 sidebar entry and serves its module from the installed
 `custom_components/advnfc/frontend/` directory. It does not add a Home
 Assistant App, shared web server, browser-direct MQTT or YAML transport, or a
-second deployment mechanism. The visible ASTV-354 panel is deliberately a
-read-only technical proof; the full list/editor workflow belongs to ASTV-355.
+second deployment mechanism. The panel provides the AdvNFC administration
+workspace: a compact active-tag list and a full-page schema-v1 tag editor.
 
 The panel is visible to authenticated non-admin users because capability,
 status and normalized active reads use the provider's read authorization
@@ -242,6 +242,33 @@ target discovery. Manual structurally valid `intent_id` entry and all
 independent AdvNFC reads remain available; AdvNFC structural validation must
 not imply that an optional ASTV target currently exists. An unsaved ASTV draft
 is never represented as an active target.
+
+### Tag list and editor behavior
+
+The primary list is explicitly an active-runtime view. It supports retained
+search and sorting by provider `label`, canonical `uid`, and the referenced
+ASTV `intent_id`. Persisted changes do not appear as active records before a
+successful reload; the panel displays active and persisted revisions and an
+activation-required banner rather than blending those states.
+
+The full-page editor has General, Action, and read-only Status sections.
+General owns manual canonical UID registration and required Name-to-`label`
+mapping. UID is immutable after registration. Action owns exactly one required
+schema-v1 `astv_intent` reference and optional `area_override`; it uses the
+optional searchable active ASTV target list while retaining manual structurally
+valid input when that provider is unavailable. Status reports provider state,
+active/persisted revisions, activation requirement, and whether the record is
+present in the active view. Description, unassigned records, other action
+types, multiple actions, bulk operations, and physical-reader capture are not
+part of this interface.
+
+Save, Cancel, confirmed Delete, and confirmed Activate are separate actions.
+The panel protects dirty editor state during in-panel transitions and browser
+unload. Mutation affordances are presented only to administrators, while the
+provider's admin-service registration remains authoritative. Record validation
+precedes create/update; duplicate UID, stale revision, permission, provider,
+and timeout outcomes remain visible. Stale or uncertain operations refresh
+status and the active list but are never retried silently.
 
 ### Asset identity, update and removal
 

@@ -1,382 +1,96 @@
 const ADVNFC_DOMAIN = "advnfc";
-const ADVNFC_INTERFACE_ID = "advnfc.tag_mapping.administration";
 const ASTV_DOMAIN = "astv_intent_catalogue";
-const ASTV_INTERFACE_ID = "astv.intent_catalogue.administration";
-
-const OPERATIONS = Object.freeze({
-  capabilities: "get_administration_capabilities",
-  status: "get_administration_status",
-  list: "list_tag_mappings",
-  get: "get_tag_mapping",
-  validateRecord: "validate_tag_mapping_record",
-  validateCandidate: "validate_tag_mapping",
-  create: "create_tag_mapping",
-  update: "update_tag_mapping",
-  delete: "delete_tag_mapping",
-  activate: "reload_tag_mapping",
-});
-
-const OPERATION_IDS = Object.freeze({
-  capabilities: "capabilities",
-  status: "status",
-  list: "list",
-  get: "get",
-  validateRecord: "validate_record",
-  validateCandidate: "validate_document",
-  create: "create",
-  update: "update",
-  delete: "delete",
-  activate: "activate",
-});
-
-const MANAGE_OPERATIONS = new Set([
-  "validateRecord",
-  "validateCandidate",
-  "create",
-  "update",
-  "delete",
-  "activate",
-]);
-
-const PROVIDER_UNAVAILABLE_CODES = new Set([
-  "not_found",
-  "service_not_found",
-  "unknown_command",
-  "dependency_unavailable",
-]);
+const OPERATIONS = {capabilities:"get_administration_capabilities",status:"get_administration_status",list:"list_tag_mappings",get:"get_tag_mapping",validateRecord:"validate_tag_mapping_record",create:"create_tag_mapping",update:"update_tag_mapping",delete:"delete_tag_mapping",activate:"reload_tag_mapping"};
+const OPERATION_IDS = {capabilities:"capabilities",status:"status",list:"list",get:"get",validateRecord:"validate_record",create:"create",update:"update",delete:"delete",activate:"activate"};
+const MANAGE = new Set(["validateRecord","create","update","delete","activate"]);
+const UNAVAILABLE = new Set(["not_found","service_not_found","unknown_command","dependency_unavailable"]);
 
 export class AdvNfcAdapterError extends Error {
-  constructor(kind, code, message, cause = undefined) {
-    super(message);
-    this.name = "AdvNfcAdapterError";
-    this.kind = kind;
-    this.code = code;
-    this.cause = cause;
-  }
+  constructor(kind, code, message, cause) { super(message); this.name="AdvNfcAdapterError"; this.kind=kind; this.code=code; this.cause=cause; }
 }
-
-function nativeCode(error) {
-  return String(error?.code ?? error?.error?.code ?? "unknown_error");
-}
-
-function nativeMessage(error) {
-  return String(error?.message ?? error?.error?.message ?? "Home Assistant request failed");
-}
-
-function majorVersion(value) {
-  return String(value ?? "").split(".")[0];
-}
-
-export function commonErrorCategory(operation, providerCode) {
+const nativeCode = (e) => String(e?.code ?? e?.error?.code ?? "unknown_error");
+const nativeMessage = (e) => String(e?.message ?? e?.error?.message ?? "Home Assistant request failed");
+const major = (v) => String(v ?? "").split(".")[0];
+export const normalizeUid = (v) => String(v ?? "").trim().toUpperCase();
+export const mappingTarget = (m) => String(m?.action?.intent_id ?? "");
+export function commonErrorCategory(operation, code) {
   if (operation === "activate") return "activation_failed";
-  return {
-    invalid_query: "invalid_request",
-    invalid_candidate: "invalid_request",
-    duplicate_uid: "invalid_request",
-    not_found: "not_found",
-    already_exists: "invalid_request",
-    stale_revision: "stale_revision",
-    persisted_state_unavailable: "dependency_unavailable",
-    atomic_write_failed: "dependency_unavailable",
-  }[providerCode] ?? "provider_failed";
+  return {invalid_query:"invalid_request",invalid_candidate:"invalid_request",duplicate_uid:"invalid_request",not_found:"not_found",already_exists:"invalid_request",stale_revision:"stale_revision",persisted_state_unavailable:"dependency_unavailable",atomic_write_failed:"dependency_unavailable"}[code] ?? "provider_failed";
 }
+export function filterAndSortMappings(mappings, query, key="label", direction="asc") {
+  const needle=String(query??"").trim().toLowerCase();
+  const rows=(Array.isArray(mappings)?mappings:[]).filter((m)=>[m?.label,m?.uid,mappingTarget(m)].some((v)=>String(v??"").toLowerCase().includes(needle)));
+  const factor=direction==="desc"?-1:1;
+  return [...rows].sort((a,b)=>{const av=key==="target"?mappingTarget(a):String(a?.[key]??""); const bv=key==="target"?mappingTarget(b):String(b?.[key]??""); return factor*(av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"})||String(a.uid).localeCompare(String(b.uid)));});
+}
+export function mappingFromDraft(draft) {
+  const mapping={uid:normalizeUid(draft?.uid),label:String(draft?.label??"").trim(),action:{type:"astv_intent",intent_id:String(draft?.intentId??"").trim().toLowerCase()}};
+  const area=String(draft?.areaOverride??"").trim(); if(area) mapping.area_override=area; return mapping;
+}
+export const draftFromMapping = (m={}) => ({uid:String(m.uid??""),label:String(m.label??""),intentId:mappingTarget(m),areaOverride:String(m.area_override??"")});
+const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+const short=(v)=>{const s=String(v??""); return s?`${s.slice(0,12)}${s.length>12?"…":""}`:"Unavailable";};
 
 export class AdvNfcProviderAdapter {
-  constructor(hass, { timeoutMs = 15000 } = {}) {
-    this.hass = hass;
-    this.timeoutMs = timeoutMs;
-    this.capabilities = null;
+  constructor(hass,{timeoutMs=15000}={}) { this.hass=hass; this.timeoutMs=timeoutMs; this.capabilities=null; }
+  setHass(hass){this.hass=hass;}
+  get canManage(){return this.hass?.user?.is_admin===true;}
+  async callService(domain,service,serviceData={}) {
+    if(!this.hass?.callWS) throw new AdvNfcAdapterError("client","connection_unavailable","Home Assistant WebSocket is unavailable.");
+    let timer; const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new AdvNfcAdapterError("timeout","timeout",`Timed out calling ${domain}.${service}.`)),this.timeoutMs);});
+    try { const result=await Promise.race([this.hass.callWS({type:"call_service",domain,service,service_data:serviceData,return_response:true}),timeout]); if(!result||typeof result.response!=="object"||result.response===null) throw new AdvNfcAdapterError("transport","invalid_response",`${domain}.${service} returned no response payload.`); return result.response; }
+    catch(error){if(error instanceof AdvNfcAdapterError) throw error; const code=nativeCode(error); const kind=["unauthorized","permission_denied"].includes(code)?"permission":"transport"; throw new AdvNfcAdapterError(kind,kind==="permission"?"permission_denied":code,nativeMessage(error),error);}
+    finally{clearTimeout(timer);}
   }
-
-  setHass(hass) {
-    this.hass = hass;
+  async call(operation,data={}) { const service=OPERATIONS[operation]; if(!service) throw new AdvNfcAdapterError("client","unsupported_operation",`Unsupported operation: ${operation}`); if(MANAGE.has(operation)&&!this.canManage) throw new AdvNfcAdapterError("permission","permission_denied","Administrator access is required."); return this.callService(ADVNFC_DOMAIN,service,data); }
+  async discover(){const r=await this.call("capabilities"); if(!r.ok||r.interface_id!=="advnfc.tag_mapping.administration"||major(r.interface_version)!=="3"||r.tag_mapping_schema_version!==1) throw new AdvNfcAdapterError("provider","incompatible_interface","The installed AdvNFC administration interface is not compatible."); if(!r.supported_action_types?.includes("astv_intent")) throw new AdvNfcAdapterError("provider","incompatible_schema","Schema-v1 astv_intent is not advertised."); this.capabilities=r; return r;}
+  async requireOperation(op){const c=this.capabilities??await this.discover(); if(!c.operations?.includes(OPERATION_IDS[op])) throw new AdvNfcAdapterError("provider","unsupported_operation",`The provider does not advertise ${OPERATION_IDS[op]}.`);}
+  async status(){await this.requireOperation("status"); return this.call("status");}
+  async list(){await this.requireOperation("list"); return this.call("list");}
+  async get(uid){await this.requireOperation("get"); return this.call("get",{uid:normalizeUid(uid)});}
+  async validateRecord(mapping){await this.requireOperation("validateRecord"); return this.call("validateRecord",{mapping});}
+  async guardedMutation(operation,payload={}) {
+    if(!["create","update","delete"].includes(operation)) throw new AdvNfcAdapterError("client","unsupported_mutation",`Not a guarded mutation: ${operation}`);
+    await this.requireOperation(operation); const before=await this.status(); if(!before.ok||!before.persisted_revision) return before;
+    try { const result=await this.call(operation,{...payload,expected_revision:before.persisted_revision}); if(result?.ok!==false) return result; if(result?.error?.code!=="stale_revision") return {...result,category:commonErrorCategory(operation,result.error?.code)}; return {ok:false,conflict:true,category:"stale_revision",result,refreshed_status:await this.status(),refreshed_active:await this.list()}; }
+    catch(error){if(!(error instanceof AdvNfcAdapterError)||error.kind!=="timeout") throw error; return {ok:false,uncertain:true,error:{code:error.code,message:error.message},refreshed_status:await this.status(),refreshed_active:await this.list()};}
   }
-
-  get canManage() {
-    return this.hass?.user?.is_admin === true;
-  }
-
-  async callService(domain, service, serviceData = {}) {
-    if (!this.hass?.callWS) {
-      throw new AdvNfcAdapterError("client", "connection_unavailable", "Home Assistant WebSocket is unavailable.");
-    }
-
-    let timer;
-    const timeout = new Promise((_, reject) => {
-      timer = globalThis.setTimeout(
-        () => reject(new AdvNfcAdapterError("timeout", "timeout", `Timed out calling ${domain}.${service}.`)),
-        this.timeoutMs,
-      );
-    });
-
-    try {
-      const result = await Promise.race([
-        this.hass.callWS({
-          type: "call_service",
-          domain,
-          service,
-          service_data: serviceData,
-          return_response: true,
-        }),
-        timeout,
-      ]);
-      if (!result || typeof result.response !== "object" || result.response === null) {
-        throw new AdvNfcAdapterError("transport", "invalid_response", `${domain}.${service} returned no response payload.`);
-      }
-      return result.response;
-    } catch (error) {
-      if (error instanceof AdvNfcAdapterError) throw error;
-      const code = nativeCode(error);
-      const kind = ["unauthorized", "permission_denied"].includes(code) ? "permission" : "transport";
-      throw new AdvNfcAdapterError(kind, kind === "permission" ? "permission_denied" : code, nativeMessage(error), error);
-    } finally {
-      globalThis.clearTimeout(timer);
-    }
-  }
-
-  async call(operation, serviceData = {}) {
-    const service = OPERATIONS[operation];
-    if (!service) {
-      throw new AdvNfcAdapterError("client", "unsupported_operation", `Unsupported operation: ${operation}`);
-    }
-    if (MANAGE_OPERATIONS.has(operation) && !this.canManage) {
-      throw new AdvNfcAdapterError("permission", "permission_denied", "Administrator access is required.");
-    }
-    return this.callService(ADVNFC_DOMAIN, service, serviceData);
-  }
-
-  async discover() {
-    const response = await this.call("capabilities");
-    if (!response.ok || response.interface_id !== ADVNFC_INTERFACE_ID || majorVersion(response.interface_version) !== "3" || response.tag_mapping_schema_version !== 1) {
-      throw new AdvNfcAdapterError("provider", "incompatible_interface", "The installed AdvNFC administration interface is not compatible.");
-    }
-    if (!Array.isArray(response.supported_action_types) || !response.supported_action_types.includes("astv_intent")) {
-      throw new AdvNfcAdapterError("provider", "incompatible_schema", "The installed provider does not advertise the schema-v1 astv_intent action.");
-    }
-    this.capabilities = response;
-    return response;
-  }
-
-  async requireOperation(operation) {
-    const discovery = this.capabilities ?? await this.discover();
-    const operationId = OPERATION_IDS[operation];
-    if (!Array.isArray(discovery.operations) || !discovery.operations.includes(operationId)) {
-      throw new AdvNfcAdapterError("provider", "unsupported_operation", `The installed provider does not advertise ${operationId}.`);
-    }
-    return discovery;
-  }
-
-  async status() {
-    await this.requireOperation("status");
-    return this.call("status");
-  }
-
-  async list() {
-    await this.requireOperation("list");
-    return this.call("list");
-  }
-
-  async guardedMutation(operation, payload = {}) {
-    if (!["create", "update", "delete"].includes(operation)) {
-      throw new AdvNfcAdapterError("client", "unsupported_mutation", `Not a revision-guarded mutation: ${operation}`);
-    }
-    await this.requireOperation(operation);
-    const before = await this.status();
-    if (!before.ok || !before.persisted_revision) return before;
-
-    try {
-      const result = await this.call(operation, {
-        ...payload,
-        expected_revision: before.persisted_revision,
-      });
-      if (result?.ok !== false) return result;
-      if (result?.error?.code !== "stale_revision") {
-        return { ...result, category: commonErrorCategory(operation, result.error?.code) };
-      }
-      return {
-        ok: false,
-        conflict: true,
-        category: "stale_revision",
-        result,
-        refreshed_status: await this.status(),
-        refreshed_active: await this.list(),
-      };
-    } catch (error) {
-      if (!(error instanceof AdvNfcAdapterError) || error.kind !== "timeout") throw error;
-      return {
-        ok: false,
-        uncertain: true,
-        error: { code: error.code, message: error.message },
-        refreshed_status: await this.status(),
-        refreshed_active: await this.list(),
-      };
-    }
-  }
-
-  async activate() {
-    await this.requireOperation("activate");
-    const before = await this.status();
-    if (!before.ok || !before.activation_required) {
-      return { ok: false, error: { code: "activation_not_required", message: "Persisted and active revisions already match." }, status: before };
-    }
-
-    try {
-      const result = await this.call("activate");
-      if (!result.ok) {
-        return { ...result, category: commonErrorCategory("activate", result.error?.code) };
-      }
-      const verifiedStatus = await this.status();
-      return {
-        ...result,
-        verified_status: verifiedStatus,
-        verified: verifiedStatus.ok === true
-          && verifiedStatus.activation_required === false
-          && verifiedStatus.active_revision === verifiedStatus.persisted_revision,
-      };
-    } catch (error) {
-      if (!(error instanceof AdvNfcAdapterError) || error.kind !== "timeout") throw error;
-      return {
-        ok: false,
-        uncertain: true,
-        category: "activation_failed",
-        error: { code: error.code, message: error.message },
-        refreshed_status: await this.status(),
-        refreshed_active: await this.list(),
-      };
-    }
-  }
-
-  async listAstvIntentTargets() {
-    let discovery;
-    try {
-      discovery = await this.callService(ASTV_DOMAIN, "get_administration_capabilities");
-    } catch (error) {
-      if (error instanceof AdvNfcAdapterError && PROVIDER_UNAVAILABLE_CODES.has(error.code)) {
-        return { available: false, state: "unavailable", intents: [], reason: "provider_unavailable" };
-      }
-      throw error;
-    }
-    if (!discovery.ok) {
-      const state = PROVIDER_UNAVAILABLE_CODES.has(discovery.error?.code) ? "unavailable" : "error";
-      return { available: false, state, intents: [], response: discovery };
-    }
-    if (discovery.interface_id !== ASTV_INTERFACE_ID || majorVersion(discovery.interface_version) !== "1" || !discovery.capabilities?.includes("active.list")) {
-      return { available: false, state: "incompatible", intents: [], reason: "incompatible_provider" };
-    }
-
-    const intents = [];
-    let cursor;
-    let activeRevision;
-    do {
-      // Omitted view is active for both ASTV interface v1.0 and v1.1.
-      const serviceData = { limit: 200 };
-      if (cursor) serviceData.cursor = cursor;
-      const page = await this.callService(ASTV_DOMAIN, "list_intent_records", serviceData);
-      if (!page.ok) {
-        const state = PROVIDER_UNAVAILABLE_CODES.has(page.error?.code) ? "unavailable" : "error";
-        return { available: false, state, intents: [], response: page };
-      }
-      if (activeRevision !== undefined && page.active_revision !== activeRevision) {
-        return { available: false, state: "stale", intents: [], reason: "revision_changed_during_pagination" };
-      }
-      activeRevision = page.active_revision;
-      intents.push(...(Array.isArray(page.records) ? page.records : []));
-      cursor = page.next_cursor ?? null;
-    } while (cursor);
-    return { available: true, state: "available", active_revision: activeRevision, intents };
-  }
+  async activate(){await this.requireOperation("activate"); const before=await this.status(); if(!before.ok||!before.activation_required) return {ok:false,error:{code:"activation_not_required",message:"Persisted and active revisions already match."},status:before}; try{const r=await this.call("activate"); if(!r.ok) return {...r,category:commonErrorCategory("activate",r.error?.code)}; const verified_status=await this.status(); return {...r,verified_status,verified:verified_status.ok===true&&verified_status.activation_required===false&&verified_status.active_revision===verified_status.persisted_revision};}catch(error){if(!(error instanceof AdvNfcAdapterError)||error.kind!=="timeout") throw error; return {ok:false,uncertain:true,category:"activation_failed",error:{code:error.code,message:error.message},refreshed_status:await this.status(),refreshed_active:await this.list()};}}
+  async listAstvIntentTargets(){let discovery; try{discovery=await this.callService(ASTV_DOMAIN,"get_administration_capabilities");}catch(error){if(error instanceof AdvNfcAdapterError&&UNAVAILABLE.has(error.code)) return {available:false,state:"unavailable",intents:[],reason:"provider_unavailable"}; throw error;} if(!discovery.ok) return {available:false,state:UNAVAILABLE.has(discovery.error?.code)?"unavailable":"error",intents:[],response:discovery}; if(discovery.interface_id!=="astv.intent_catalogue.administration"||major(discovery.interface_version)!=="1"||!discovery.capabilities?.includes("active.list")) return {available:false,state:"incompatible",intents:[],reason:"incompatible_provider"}; const intents=[]; let cursor,active_revision; do{const data={limit:200}; if(cursor)data.cursor=cursor; const page=await this.callService(ASTV_DOMAIN,"list_intent_records",data); if(!page.ok)return {available:false,state:UNAVAILABLE.has(page.error?.code)?"unavailable":"error",intents:[],response:page}; if(active_revision!==undefined&&page.active_revision!==active_revision)return {available:false,state:"stale",intents:[],reason:"revision_changed_during_pagination"}; active_revision=page.active_revision; intents.push(...(page.records??[])); cursor=page.next_cursor??null;}while(cursor); return {available:true,state:"available",active_revision,intents};}
 }
 
 export class AdvNfcAdministrationPanel extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: "open" });
-    this.adapter = null;
-    this.busy = false;
-  }
-
-  set hass(value) {
-    this._hass = value;
-    if (!this.adapter) this.adapter = new AdvNfcProviderAdapter(value);
-    else this.adapter.setHass(value);
-    if (!this.shadowRoot.childElementCount) this.render();
-    const permission = this.shadowRoot.querySelector(".permission");
-    if (permission) permission.textContent = `Read access: available · Manage access: ${this.adapter.canManage ? "administrator" : "read only"}`;
-  }
-
-  set panel(value) {
-    this._panel = value;
-  }
-
-  async run(operation) {
-    if (this.busy) return;
-    this.busy = true;
-    this.renderStatus("Loading…", "loading");
-    this.toggleButtons(true);
-    try {
-      const response = operation === "capabilities"
-        ? await this.adapter.discover()
-        : operation === "status"
-          ? await this.adapter.status()
-          : operation === "mappings"
-            ? await this.adapter.list()
-            : await this.adapter.listAstvIntentTargets();
-      const success = response.ok === true || response.available === true;
-      this.renderStatus(JSON.stringify(response, null, 2), success ? "success" : "error");
-    } catch (error) {
-      this.renderStatus(`${error.code ?? "error"}: ${error.message}`, "error");
-    } finally {
-      this.busy = false;
-      this.toggleButtons(false);
-    }
-  }
-
-  toggleButtons(disabled) {
-    this.shadowRoot.querySelectorAll("button").forEach((button) => { button.disabled = disabled; });
-  }
-
-  renderStatus(text, state = "idle") {
-    const output = this.shadowRoot.querySelector("pre");
-    if (!output) return;
-    output.textContent = text;
-    output.dataset.state = state;
-  }
-
-  render() {
-    if (!this.shadowRoot || !this._hass || this.shadowRoot.childElementCount) return;
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: block; min-height: 100%; color: var(--primary-text-color); background: var(--primary-background-color); }
-        main { box-sizing: border-box; max-width: 62rem; margin: 0 auto; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
-        h1 { font-size: clamp(1.35rem, 5vw, 2rem); margin: 0 0 .35rem; }
-        p { line-height: 1.45; }
-        .permission { color: var(--secondary-text-color); }
-        .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; margin: 1rem 0; }
-        button { min-height: 2.75rem; border: 0; border-radius: .4rem; padding: .65rem .85rem; color: var(--text-primary-color, white); background: var(--primary-color); font: inherit; cursor: pointer; }
-        button:disabled { opacity: .55; cursor: progress; }
-        pre { min-height: 10rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border-radius: .5rem; background: var(--card-background-color); box-shadow: var(--ha-card-box-shadow, none); }
-        pre[data-state="error"] { border-inline-start: .3rem solid var(--error-color); }
-        pre[data-state="success"] { border-inline-start: .3rem solid var(--success-color, #2e7d32); }
-        @media (max-width: 420px) { main { padding-inline: .75rem; } .actions { grid-template-columns: 1fr 1fr; } }
-      </style>
-      <main>
-        <h1>AdvNFC Administration</h1>
-        <p>Read-only transport proof for provider state, active tag mappings, and optional ASTV intent discovery. It cannot save or activate mappings.</p>
-        <p class="permission">Read access: available · Manage access: ${this.adapter.canManage ? "administrator" : "read only"}</p>
-        <div class="actions">
-          <button data-operation="capabilities">Capabilities</button>
-          <button data-operation="status">Status</button>
-          <button data-operation="mappings">Active mappings</button>
-          <button data-operation="intents">ASTV targets</button>
-        </div>
-        <pre aria-live="polite">Choose a proof operation.</pre>
-      </main>`;
-    this.shadowRoot.querySelectorAll("button").forEach((button) => {
-      button.addEventListener("click", () => this.run(button.dataset.operation));
-    });
-  }
+  constructor(){super(); this.attachShadow({mode:"open"}); Object.assign(this,{adapter:null,busy:false,loaded:false,view:"list",query:"",sortKey:"label",sortDirection:"asc",activeMappings:[],providerStatus:null,intentSource:{available:false,state:"loading",intents:[]},editorMode:"create",editorTab:"general",draft:draftFromMapping(),originalDraft:draftFromMapping(),message:null}); this.beforeUnload=(e)=>{if(this.isDirty()){e.preventDefault();e.returnValue="";}};}
+  connectedCallback(){globalThis.addEventListener?.("beforeunload",this.beforeUnload); if(this._hass&&!this.loaded)this.load();}
+  disconnectedCallback(){globalThis.removeEventListener?.("beforeunload",this.beforeUnload);}
+  set hass(v){this._hass=v; if(!this.adapter)this.adapter=new AdvNfcProviderAdapter(v); else this.adapter.setHass(v); this.render(); if(this.isConnected&&!this.loaded&&!this.busy)this.load();}
+  set panel(v){this._panel=v;}
+  isDirty(){return this.view==="editor"&&JSON.stringify(this.draft)!==JSON.stringify(this.originalDraft);}
+  confirmDiscard(){return !this.isDirty()||globalThis.confirm("Discard your unsaved changes?");}
+  setMessage(kind,text){this.message={kind,text};}
+  errorMessage(e){if(e?.kind==="permission"||e?.code==="permission_denied")return "Administrator permission is required for that action."; if(e?.kind==="timeout")return "The request timed out. Its outcome may be uncertain."; return `${e?.code??"error"}: ${e?.message??"The request failed."}`;}
+  async withBusy(action){if(this.busy)return; this.busy=true;this.render();try{return await action();}catch(e){this.setMessage("error",this.errorMessage(e));}finally{this.busy=false;this.render();}}
+  async load(){await this.withBusy(async()=>{await this.adapter.discover();const [status,active,intents]=await Promise.all([this.adapter.status(),this.adapter.list(),this.adapter.listAstvIntentTargets().catch((error)=>({available:false,state:"error",intents:[],error}))]);if(!status.ok||!active.ok)throw new AdvNfcAdapterError("provider",(status.error??active.error)?.code,(status.error??active.error)?.message);this.providerStatus=status;this.activeMappings=active.mappings??[];this.intentSource=intents;this.loaded=true;});}
+  async refresh(){await this.withBusy(async()=>{const [s,a]=await Promise.all([this.adapter.status(),this.adapter.list()]);if(!s.ok||!a.ok)throw new AdvNfcAdapterError("provider",(s.error??a.error)?.code,(s.error??a.error)?.message);this.providerStatus=s;this.activeMappings=a.mappings??[];this.setMessage("success","Active mappings and provider status refreshed.");});}
+  openCreate(){if(!this.confirmDiscard())return;this.editorMode="create";this.editorTab="general";this.draft=draftFromMapping();this.originalDraft=draftFromMapping();this.message=null;this.view="editor";this.render();}
+  openEdit(uid){if(!this.confirmDiscard())return;const m=this.activeMappings.find((x)=>x.uid===uid);if(!m)return;this.editorMode="edit";this.editorTab="general";this.draft=draftFromMapping(m);this.originalDraft=draftFromMapping(m);this.message=null;this.view="editor";this.render();}
+  closeEditor(){if(!this.confirmDiscard())return;this.view="list";this.message=null;this.render();}
+  updateDraft(input){this.draft={...this.draft,[input.dataset.field]:input.value};const dirty=this.shadowRoot.querySelector(".dirty");if(dirty)dirty.hidden=!this.isDirty();const save=this.shadowRoot.querySelector('[data-action="save"]');if(save)save.disabled=this.busy||!this.isDirty();}
+  reconcile(result){if(result?.refreshed_status)this.providerStatus=result.refreshed_status;if(result?.refreshed_active?.mappings)this.activeMappings=result.refreshed_active.mappings;}
+  async save(){const mapping=mappingFromDraft(this.draft);if(!mapping.uid||!mapping.label||!mapping.action.intent_id){this.setMessage("error","UID, Name, and ASTV intent are required.");this.render();return;}await this.withBusy(async()=>{const v=await this.adapter.validateRecord(mapping);if(!v.ok){this.setMessage("error",v.error?.message??"The record is invalid.");return;}const op=this.editorMode==="create"?"create":"update";const r=await this.adapter.guardedMutation(op,{mapping:v.mapping});this.reconcile(r);if(r?.conflict){this.setMessage("error","The persisted mapping changed. Nothing was overwritten. Review refreshed state and save again explicitly.");return;}if(r?.uncertain){this.setMessage("error","Save outcome is uncertain after timeout. State was refreshed; do not retry until reconciled.");return;}if(!r?.ok){this.setMessage("error",`${r?.error?.code==="already_exists"?"That canonical UID is already registered. ":""}${r?.error?.message??"Save failed."}`);return;}this.providerStatus=await this.adapter.status();this.draft=draftFromMapping(r.mapping??v.mapping);this.originalDraft={...this.draft};this.editorMode="edit";this.editorTab="status";this.setMessage("success","Saved to persisted configuration. Runtime behavior is unchanged until you explicitly Activate changes.");});}
+  async remove(){const uid=normalizeUid(this.draft.uid);if(!confirm(`Delete persisted tag ${uid}? Runtime behavior remains unchanged until activation.`))return;await this.withBusy(async()=>{const r=await this.adapter.guardedMutation("delete",{uid});this.reconcile(r);if(r?.conflict||r?.uncertain){this.setMessage("error",r.conflict?"The persisted mapping changed. Nothing was deleted.":"Delete outcome is uncertain. State was refreshed; reconcile before retrying.");return;}if(!r?.ok){this.setMessage("error",r?.error?.message??"Delete failed.");return;}this.providerStatus=await this.adapter.status();this.view="list";this.setMessage("success",`Deleted ${uid} from persisted configuration. It remains active until activation.`);});}
+  async activate(){if(this.isDirty()&&!confirm("Unsaved editor changes are not part of the persisted mapping and will not be activated. Continue?"))return;if(!confirm("Activate the complete persisted mapping now? This changes runtime NFC routing."))return;await this.withBusy(async()=>{const r=await this.adapter.activate();this.reconcile(r);if(!r?.ok||!r?.verified){this.setMessage("error",r?.uncertain?"Activation outcome is uncertain. State was refreshed; reconcile before retrying.":r?.error?.message??"Activation did not verify revision equality.");return;}this.providerStatus=r.verified_status;const active=await this.adapter.list();this.activeMappings=active.mappings??[];this.view="list";this.setMessage("success","Persisted changes are active and revision equality was verified.");});}
+  bindCommon(){this.shadowRoot.querySelector('[data-action="refresh"]')?.addEventListener("click",()=>this.refresh());this.shadowRoot.querySelector('[data-action="activate"]')?.addEventListener("click",()=>this.activate());}
+  bindList(){this.bindCommon();this.shadowRoot.querySelector('[data-action="new"]')?.addEventListener("click",()=>this.openCreate());this.shadowRoot.querySelector('[data-field="query"]')?.addEventListener("input",(e)=>{this.query=e.target.value;this.render();const s=this.shadowRoot.querySelector('[data-field="query"]');s?.focus();s?.setSelectionRange(this.query.length,this.query.length);});this.shadowRoot.querySelectorAll("[data-sort]").forEach((b)=>b.addEventListener("click",()=>{if(this.sortKey===b.dataset.sort)this.sortDirection=this.sortDirection==="asc"?"desc":"asc";else{this.sortKey=b.dataset.sort;this.sortDirection="asc";}this.render();}));this.shadowRoot.querySelectorAll("[data-edit]").forEach((b)=>b.addEventListener("click",()=>this.openEdit(b.dataset.edit)));}
+  bindEditor(){this.bindCommon();this.shadowRoot.querySelectorAll("[data-tab]").forEach((b)=>b.addEventListener("click",()=>{this.editorTab=b.dataset.tab;this.render();}));this.shadowRoot.querySelectorAll("[data-field]").forEach((i)=>i.addEventListener("input",()=>this.updateDraft(i)));this.shadowRoot.querySelector('[data-action="cancel"]')?.addEventListener("click",()=>this.closeEditor());this.shadowRoot.querySelector('[data-action="save"]')?.addEventListener("click",()=>this.save());this.shadowRoot.querySelector('[data-action="delete"]')?.addEventListener("click",()=>this.remove());}
+  banner(){const s=this.providerStatus;if(!s)return"";const pending=s.activation_required===true;return `<section class="activation ${pending?"pending":""}"><div><strong>${pending?"Persisted changes are not active":"Runtime mapping is current"}</strong><span>Active ${esc(short(s.active_revision))} · Persisted ${esc(short(s.persisted_revision))}</span></div>${pending&&this.adapter?.canManage?'<button class="danger" data-action="activate">Activate changes</button>':""}</section>`;}
+  notice(){return this.message?`<div class="notice ${esc(this.message.kind)}" role="status">${esc(this.message.text)}</div>`:"";}
+  listMarkup(){const rows=filterAndSortMappings(this.activeMappings,this.query,this.sortKey,this.sortDirection);const arrow=(k)=>this.sortKey===k?(this.sortDirection==="asc"?" ↑":" ↓"):"";const body=rows.length?rows.map((m)=>`<tr><td data-label="Name"><strong>${esc(m.label)}</strong></td><td data-label="UID"><code>${esc(m.uid)}</code></td><td data-label="ASTV target">${esc(mappingTarget(m))}</td><td class="row-action"><button class="secondary" data-edit="${esc(m.uid)}">${this.adapter.canManage?"Edit":"View"}</button></td></tr>`).join(""):'<tr><td colspan="4" class="empty">No active tags match this search.</td></tr>';return `<section class="toolbar"><label class="search"><span class="sr">Search</span><input type="search" data-field="query" value="${esc(this.query)}" placeholder="Search name, UID, or ASTV target"></label><button class="secondary" data-action="refresh">Refresh</button>${this.adapter.canManage?'<button data-action="new">Register tag</button>':""}</section><p class="context">Showing ${rows.length} of ${this.activeMappings.length} active tags. Persisted edits appear after activation.</p><div class="table-wrap"><table><thead><tr>${[["label","Name"],["uid","UID"],["target","ASTV target"]].map(([k,n])=>`<th><button class="sort" data-sort="${k}">${n}${arrow(k)}</button></th>`).join("")}<th><span class="sr">Actions</span></th></tr></thead><tbody>${body}</tbody></table></div>`;}
+  generalTab(ro){return `<div class="form-grid"><label><span>Canonical UID <em>required</em></span><input data-field="uid" required value="${esc(this.draft.uid)}" ${this.editorMode==="edit"||ro?"disabled":""}><small>${this.editorMode==="edit"?"UID is immutable after registration.":"Trimmed and stored uppercase."}</small></label><label><span>Name <em>required</em></span><input data-field="label" required value="${esc(this.draft.label)}" ${ro?"disabled":""}><small>Stored as the provider label.</small></label></div>`;}
+  actionTab(ro){const opts=(this.intentSource.intents??[]).map((i)=>`<option value="${esc(i.intent_id)}">${esc(i.record?.title??i.intent_id)}</option>`).join("");const help=this.intentSource.available?`${this.intentSource.intents.length} active ASTV targets available; manual valid entry is also supported.`:`ASTV target discovery is ${esc(this.intentSource.state)}. Manual valid entry remains available; existence is not confirmed.`;return `<div class="form-grid"><label><span>Action type</span><input value="astv_intent" disabled><small>Schema v1 supports exactly one required action.</small></label><label><span>ASTV intent <em>required</em></span><input data-field="intentId" list="astv-intents" required value="${esc(this.draft.intentId)}" ${ro?"disabled":""}><datalist id="astv-intents">${opts}</datalist><small>${help}</small></label><label><span>Area override <small>(optional)</small></span><input data-field="areaOverride" value="${esc(this.draft.areaOverride)}" ${ro?"disabled":""}><small>Empty uses downstream area resolution.</small></label></div>`;}
+  statusTab(){const s=this.providerStatus??{};const active=this.activeMappings.some((m)=>m.uid===normalizeUid(this.draft.uid));return `<dl class="status-grid"><div><dt>Provider state</dt><dd>${esc(s.state??"Unavailable")}</dd></div><div><dt>Activation</dt><dd>${s.activation_required?"Required":"Current"}</dd></div><div><dt>Active revision</dt><dd><code title="${esc(s.active_revision)}">${esc(short(s.active_revision))}</code></dd></div><div><dt>Persisted revision</dt><dd><code title="${esc(s.persisted_revision)}">${esc(short(s.persisted_revision))}</code></dd></div><div><dt>Active record</dt><dd>${active?"Present":"Not present"}</dd></div><div><dt>Provider validation</dt><dd>${s.ok===true?"Status read succeeded":"Unavailable"}</dd></div></dl><p class="context">Active reads describe runtime routing. Save changes only persisted configuration until Activate succeeds.</p>`;}
+  editorMarkup(){const ro=!this.adapter.canManage;const title=this.editorMode==="create"?"Register tag":`${ro?"View":"Edit"} ${esc(this.draft.label||this.draft.uid)}`;const content=this.editorTab==="general"?this.generalTab(ro):this.editorTab==="action"?this.actionTab(ro):this.statusTab();return `<section class="editor-heading"><button class="secondary" data-action="cancel">← Back</button><div><h2>${title}</h2><span class="dirty" ${this.isDirty()?"":"hidden"}>Unsaved changes</span></div></section><nav class="tabs">${["general","action","status"].map((t)=>`<button data-tab="${t}" aria-current="${this.editorTab===t?"page":"false"}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</nav><section class="editor-card">${content}</section><section class="editor-actions"><button class="secondary" data-action="cancel">Cancel</button>${!ro&&this.editorMode==="edit"?'<button class="danger-outline" data-action="delete">Delete</button>':""}${!ro?`<button data-action="save" ${this.isDirty()?"":"disabled"}>Save</button>`:""}</section>`;}
+  styles(){return `:host{display:block;min-height:100%;color:var(--primary-text-color);background:var(--primary-background-color);font-family:system-ui,sans-serif}*{box-sizing:border-box}main{width:min(100%,72rem);margin:auto;padding:max(1rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(1.5rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left))}header{display:flex;align-items:end;justify-content:space-between;gap:1rem}h1,h2{margin:.2rem 0}.eyebrow{margin:0;color:var(--primary-color);font-weight:700;text-transform:uppercase}.permission,.context,small{color:var(--secondary-text-color)}button,input{font:inherit}button{min-height:2.75rem;border:0;border-radius:.5rem;padding:.65rem 1rem;color:var(--text-primary-color,#fff);background:var(--primary-color);font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{color:var(--primary-text-color);background:var(--secondary-background-color);border:1px solid var(--divider-color)}.danger,.danger-outline{background:var(--error-color)}.danger-outline{color:var(--error-color);background:transparent;border:1px solid var(--error-color)}.activation{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.85rem 1rem;margin:1rem 0;border-radius:.65rem;background:var(--card-background-color);border-inline-start:.35rem solid var(--success-color,#2e7d32)}.activation.pending{border-color:var(--warning-color,#ef6c00)}.activation span{display:block;color:var(--secondary-text-color);font-size:.85rem}.notice{padding:.85rem 1rem;margin:1rem 0;background:var(--secondary-background-color);border-inline-start:.35rem solid var(--primary-color)}.notice.error{border-color:var(--error-color)}.notice.success{border-color:var(--success-color,#2e7d32)}.toolbar{display:grid;grid-template-columns:minmax(14rem,1fr) auto auto;gap:.65rem;margin-top:1rem}.search input,input{width:100%;min-height:2.75rem;border:1px solid var(--divider-color);border-radius:.5rem;padding:.65rem .8rem;color:var(--primary-text-color);background:var(--card-background-color)}.table-wrap{overflow:auto;border:1px solid var(--divider-color);border-radius:.65rem;background:var(--card-background-color)}table{width:100%;border-collapse:collapse}th,td{padding:.75rem;text-align:left;border-bottom:1px solid var(--divider-color)}.sort{min-height:auto;padding:.2rem;color:var(--primary-text-color);background:transparent}.row-action{text-align:right}.empty{text-align:center}.editor-heading{display:flex;align-items:center;gap:1rem;margin-top:1rem}.dirty{color:var(--warning-color,#ef6c00);font-size:.85rem}.tabs{display:flex;margin-top:1rem;border-bottom:1px solid var(--divider-color)}.tabs button{color:var(--secondary-text-color);background:transparent}.tabs button[aria-current=page]{color:var(--primary-color);border-bottom:3px solid var(--primary-color)}.editor-card{min-height:18rem;padding:1rem;background:var(--card-background-color)}.form-grid,.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.form-grid label>span{display:block;margin-bottom:.35rem;font-weight:600}.form-grid small{display:block;margin-top:.35rem}em{color:var(--error-color);font-style:normal}.status-grid div{padding:.8rem;border:1px solid var(--divider-color);border-radius:.5rem}dt{color:var(--secondary-text-color);font-size:.8rem}dd{margin:.3rem 0 0;font-weight:600}.editor-actions{position:sticky;bottom:max(0px,env(safe-area-inset-bottom));display:flex;justify-content:flex-end;gap:.65rem;padding:1rem 0;background:var(--primary-background-color)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}[hidden]{display:none!important}@media(max-width:600px){header,.activation{align-items:stretch;flex-direction:column}.toolbar{grid-template-columns:1fr 1fr}.search{grid-column:1/-1}table,thead,tbody,tr,th,td{display:block}thead{display:flex;overflow:auto}thead tr{display:flex}thead th:last-child{display:none}tbody tr{padding:.75rem;border-bottom:1px solid var(--divider-color)}td{display:grid;grid-template-columns:7rem 1fr;gap:.5rem;padding:.35rem 0;border:0}td:before{content:attr(data-label);color:var(--secondary-text-color);font-size:.8rem}.row-action button{width:100%}.form-grid,.status-grid{grid-template-columns:1fr}.editor-actions{display:grid;grid-template-columns:1fr 1fr}.editor-actions button:last-child{grid-column:1/-1;grid-row:1}}`;}
+  render(){if(!this.shadowRoot||!this._hass)return;const content=!this.loaded?`<p>${this.busy?"Loading AdvNFC administration…":"AdvNFC administration is unavailable."}</p>${!this.busy?'<button data-action="retry">Retry</button>':""}`:this.view==="editor"?this.editorMarkup():this.listMarkup();this.shadowRoot.innerHTML=`<style>${this.styles()}</style><main><header><div><p class="eyebrow">AdvNFC</p><h1>Tag administration</h1></div><p class="permission">${this.adapter?.canManage?"Administrator · read and manage":"Read-only access"}</p></header>${this.banner()}${this.notice()}${content}</main>`;if(!this.loaded)this.shadowRoot.querySelector('[data-action="retry"]')?.addEventListener("click",()=>this.load());else if(this.view==="editor")this.bindEditor();else this.bindList();}
 }
-
-if (globalThis.customElements && !globalThis.customElements.get("advnfc-administration-panel")) {
-  globalThis.customElements.define("advnfc-administration-panel", AdvNfcAdministrationPanel);
-}
+if(globalThis.customElements&&!globalThis.customElements.get("advnfc-administration-panel"))globalThis.customElements.define("advnfc-administration-panel",AdvNfcAdministrationPanel);
