@@ -5,6 +5,7 @@ globalThis.HTMLElement = class {};
 
 const {
   AdvNfcAdapterError,
+  AdvNfcAdministrationPanel,
   AdvNfcProviderAdapter,
   commonErrorCategory,
   draftFromMapping,
@@ -288,4 +289,50 @@ test("validation and delete use exact provider payloads with refreshed persisted
     uid: "A1",
     expected_revision: "persisted",
   });
+});
+
+test("both editor cancel controls enforce the unsaved-changes guard", () => {
+  const cancelControls = [0, 1].map(() => ({
+    listener: null,
+    addEventListener(type, listener) {
+      if (type === "click") this.listener = listener;
+    },
+    click() {
+      assert.equal(typeof this.listener, "function");
+      this.listener();
+    },
+  }));
+  const panel = {
+    view: "editor",
+    message: { kind: "success", text: "Preserved until navigation" },
+    shadowRoot: {
+      querySelector: () => null,
+      querySelectorAll: (selector) => selector === '[data-action="cancel"]' ? cancelControls : [],
+    },
+    bindCommon() {},
+    isDirty: () => true,
+    confirmDiscard: AdvNfcAdministrationPanel.prototype.confirmDiscard,
+    closeEditor: AdvNfcAdministrationPanel.prototype.closeEditor,
+    render() {},
+  };
+  const originalConfirm = globalThis.confirm;
+  const decisions = [false, true];
+  let confirmations = 0;
+  globalThis.confirm = (message) => {
+    assert.equal(message, "Discard your unsaved changes?");
+    confirmations += 1;
+    return decisions.shift();
+  };
+  try {
+    AdvNfcAdministrationPanel.prototype.bindEditor.call(panel);
+    cancelControls[1].click();
+    assert.equal(panel.view, "editor");
+    assert.notEqual(panel.message, null);
+    cancelControls[0].click();
+    assert.equal(panel.view, "list");
+    assert.equal(panel.message, null);
+    assert.equal(confirmations, 2);
+  } finally {
+    globalThis.confirm = originalConfirm;
+  }
 });
