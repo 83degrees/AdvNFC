@@ -181,6 +181,80 @@ The schema-v1 query route supports `astv_intent` plus normalized
 `intent_id`. AdvNFC owns query and normalization semantics but does not read
 the ASTV intent catalogue or validate cross-product existence.
 
+## Administration Panel and Provider Adapter
+
+### Integration-owned presentation boundary
+
+AdvNFC owns one Home Assistant custom panel bundled inside the existing
+`haos_integration` deployable unit. The integration registers a non-iframe
+sidebar entry and serves its module from the installed
+`custom_components/advnfc/frontend/` directory. It does not add a Home
+Assistant App, shared web server, browser-direct MQTT or YAML transport, or a
+second deployment mechanism. The visible ASTV-354 panel is deliberately a
+read-only technical proof; the full list/editor workflow belongs to ASTV-355.
+
+The panel is visible to authenticated non-admin users because capability,
+status and normalized active reads use the provider's read authorization
+class. Browser `hass.user.is_admin` state may suppress manage affordances, but
+it is presentation only. Validation, persistence and reload remain protected
+by Home Assistant's provider-side admin-service enforcement.
+
+### Authenticated transport and adapter behavior
+
+The panel uses the authenticated Home Assistant frontend WebSocket connection.
+Each provider call sends `type: call_service` with `return_response: true`, as
+required by `SupportsResponse.ONLY`, and consumes the returned `response`.
+Home Assistant transport and authorization errors remain distinct from
+structured AdvNFC `ok: false` outcomes. Bounded client timeouts never prove
+that a state-changing request did not reach the provider, so the adapter
+reconciles status and the active view without retrying the operation.
+
+The AdvNFC adapter negotiates interface major version 3, tag-mapping schema 1,
+the `astv_intent` action type and every optional operation before use. Active
+and persisted revisions remain distinct. Before create, update or delete, the
+adapter refreshes status and supplies the observed `persisted_revision` as
+`expected_revision`. A `stale_revision` response refreshes status and the
+active list, exposes a conflict and never retries or overwrites automatically.
+
+Successful Save remains persistence only and must visibly preserve
+`activation_required`; it does not call reload. Explicit reload is a separate
+provider operation which accepts no expected revision in interface v3. After a
+successful reload, the adapter re-reads status and verifies that active and
+persisted revisions are equal and activation is no longer required. A failed
+or timed-out reload retains the previous active state and is never presented as
+success.
+
+Provider error codes are normalized through the compatibility mapping in
+`ADVNFC_ADMINISTRATION_READ_INTERFACE.md`. Home Assistant authorization denial
+is mapped separately to `permission_denied` because the provider handler does
+not run.
+
+### Optional ASTV intent targets
+
+The searchable target source is the optional provider-owned ASTV Intent
+Catalogue Administration Interface. The adapter discovers interface major
+version 1 and `active.list`, then follows the provider's cursor pagination at
+the advertised maximum of 200 without combining different active revisions.
+The selector uses each active record's `intent_id` and required `title`.
+
+ASTV absence, incompatibility or temporary unavailability disables only live
+target discovery. Manual structurally valid `intent_id` entry and all
+independent AdvNFC reads remain available; AdvNFC structural validation must
+not imply that an optional ASTV target currently exists. An unsaved ASTV draft
+is never represented as an active target.
+
+### Asset identity, update and removal
+
+The frontend module is part of the HACS-installed integration tree. Its panel
+URL contains a digest derived from the installed module bytes, giving changed
+assets a new browser cache identity after the HACS-required Home Assistant
+restart. Repeated AdvNFC setup detects the existing panel and does not add a
+duplicate sidebar entry. HACS update/removal plus restart remains the asset and
+route lifecycle; no hot-copy or separate cleanup mechanism is introduced.
+
+The durable choice and rejected alternatives are recorded by
+`DDR-04-002_INTEGRATION_OWNED_ADMINISTRATION_PANEL_AND_PROVIDER_ADAPTER.md`.
+
 ### AdvNFC - Select Tag Action
 
 - Entity: `script.advnfc_select_tag_action`

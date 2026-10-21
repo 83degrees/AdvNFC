@@ -24,6 +24,7 @@ STUBBED_MODULES = (
     "custom_components",
     MODULE_NAME,
     f"{MODULE_NAME}.mapping",
+    f"{MODULE_NAME}.panel",
 )
 
 
@@ -125,6 +126,7 @@ class FakeHass:
         self.admin_services: set[str] = set()
         self.path_reads: list[tuple[str, ...]] = []
         self.area_registry_reads = 0
+        self.panel_registrations = 0
         self.config = SimpleNamespace(path=self._path)
 
     def _path(self, *parts: str) -> str:
@@ -231,6 +233,15 @@ def _load_integration():
     )
     custom_components.mapping = mapping_module
 
+    async def async_register_frontend(hass):
+        hass.panel_registrations += 1
+
+    panel_module = _install_module(
+        f"{MODULE_NAME}.panel",
+        async_register_frontend=async_register_frontend,
+    )
+    custom_components.panel = panel_module
+
     path = ROOT / "custom_components" / "advnfc" / "__init__.py"
     spec = spec_from_file_location(
         MODULE_NAME,
@@ -279,6 +290,7 @@ class AdvNfcAuthorizationTests(unittest.TestCase):
         sys.modules.update(self.saved_modules)
 
     def test_service_registration_separates_runtime_read_and_manage(self):
+        self.assertEqual(self.hass.panel_registrations, 1)
         self.assertEqual(
             self.hass.admin_services,
             {
