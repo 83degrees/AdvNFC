@@ -1,8 +1,8 @@
 # CENTRAL_GOVERNANCE.md
 
-**Governance version:** 11.16.0
+**Governance version:** 11.17.0
 **Status:** Approved
-**Approval tag:** `governance-v11.16.0`
+**Approval tag:** `governance-v11.17.0`
 **Approval date:** 2026-10-21
 
 **Authority of appendices:**  
@@ -1217,7 +1217,9 @@ For normal `WF-01` runtime-changing work, the reviewed issue PR targets persiste
 
 Before substantive review begins at G2, the actual PR base must be independently verified against the workflow-to-Git route recorded for the issue. A PR that does not target the branch required by its selected workflow fails G2 and must not be treated as review-ready.
 
-Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. On every pull request the hook checks out the exact candidate but executes the checker bytes read from the pull request's immutable base commit, so candidate changes cannot weaken the control being applied to that candidate. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy.
+Governed product repositories receive the centrally managed `.github/workflows/central-gov-hook.yml` hook and an exact centrally projected copy of the read-only routing checker at `00_Governance/01_Central/03_Tooling/central_gov_checks.py`. The routing-only hook uses GitHub's `pull_request_target` event so its workflow and checker come from the trusted default branch rather than the pull-request merge ref. It checks out the immutable workflow-source commit with persisted credentials disabled, fetches the pull-request head and base solely as Git object data, verifies those objects against the trusted event identities, and supplies NUL-delimited path inventories to the trusted checker. It must not check out, execute, source, import, install dependencies from or otherwise run pull-request candidate content.
+
+The routing hook declares only `contents: read`, receives no Governance-provided secrets and performs no pull-request or repository writes. Pull-request metadata is passed to shell steps through environment values and validated where an immutable numeric or commit identity is required; untrusted metadata must not be interpolated into generated shell source. Independent build, unit, integration, Hassfest or other candidate-execution workflows remain on the unprivileged `pull_request` route. The authoritative checker source remains `/tooling/central_gov_checks.py` in the Governance repository; product-local work must not edit the projected copy. Where repository or organisation policy prevents the trusted routing hook from running, its required evidence is absent and the pull request must not proceed as though the control passed.
 
 For the mechanical routing control, a PR that changes any path under canonical `04_Implementation/**`, the approved HACS-native root `custom_components/**` exception, or transitionally supported legacy `04_Source/**` is treated as runtime-affecting and therefore requires both an existing persistent `beta` branch and an actual PR base of `beta`. The only mechanical exception is a promotion candidate targeting `main` whose immutable pull-request head SHA exactly equals the freshly fetched persistent `beta` SHA from the same upstream repository. Branch names, pull-request text, labels, flags and claimed approval evidence do not establish promotion identity. Missing, malformed, divergent, cross-repository or changing Beta identity fails closed. Exact commit equality also excludes additional commits or content from this promotion-only route. A non-runtime PR may target `main` without being blocked solely by this routing check.
 
