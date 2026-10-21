@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-# **Version:** v1.2.0
+# **Version:** v1.3.0
 # **Status:** Approved
-# **Approval tag:** `central-gov-checks-v1.2.0`
-# **Approval date:** 2026-10-05
+# **Approval tag:** `central-gov-checks-v1.3.0`
+# **Approval date:** 2026-10-21
 
 """Central Governance pull-request checks."""
 
 import argparse
 import pathlib
+import re
 import sys
 
 CANONICAL_IMPLEMENTATION_ROOT = "04_Implementation"
@@ -23,7 +24,6 @@ HOME_ASSISTANT_APP_ROOTS = {
     LEGACY_IMPLEMENTATION_ROOT,
 }
 REQUIRED_RUNTIME_BASE = "beta"
-PROMOTION_HEAD = "beta"
 PROMOTION_BASE = "main"
 HOME_ASSISTANT_REPOSITORY_MANIFEST = "repository.yaml"
 HOME_ASSISTANT_CONFIG_SUFFIXES = {".json", ".yaml", ".yml"}
@@ -42,14 +42,45 @@ def is_home_assistant_app_path(path):
     return any(is_under(path, root) for root in HOME_ASSISTANT_APP_ROOTS)
 
 
-def evaluate_wf01_route(head_branch, base_branch, changed_files, beta_exists):
+def is_commit_sha(value):
+    return bool(re.fullmatch(r"[0-9a-fA-F]{40}", value or ""))
+
+
+def evaluate_wf01_route(
+    head_branch,
+    base_branch,
+    changed_files,
+    beta_exists,
+    repository="",
+    head_repository="",
+    head_sha="",
+    beta_sha="",
+):
     runtime_files = [path for path in changed_files if is_runtime_path(path)]
     if not runtime_files:
         return True, "No runtime implementation changed; WF-01 beta routing is not required."
     if not beta_exists:
         return False, "Runtime change detected but the required persistent beta branch does not exist."
-    if head_branch == PROMOTION_HEAD and base_branch == PROMOTION_BASE:
-        return True, "Runtime change is a governed beta-to-main G6 promotion."
+    if base_branch == PROMOTION_BASE:
+        if not repository or head_repository != repository:
+            return False, (
+                "Runtime promotion to main must originate from the same repository as the "
+                "trusted persistent beta ref."
+            )
+        if not is_commit_sha(head_sha) or not is_commit_sha(beta_sha):
+            return False, (
+                "Runtime promotion to main requires valid immutable candidate HEAD and trusted "
+                "persistent beta commit identities."
+            )
+        if head_sha.lower() != beta_sha.lower():
+            return False, (
+                "Runtime promotion candidate HEAD does not exactly match the trusted persistent "
+                "beta commit."
+            )
+        return True, (
+            "Runtime change is a mechanically verified beta-to-main G6 promotion candidate; "
+            "separate human G5/G6 authority remains required."
+        )
     if base_branch != REQUIRED_RUNTIME_BASE:
         return False, f"Runtime change detected; PR must target '{REQUIRED_RUNTIME_BASE}', not '{base_branch}'."
     return True, "Runtime change targets the required persistent beta branch."
@@ -107,8 +138,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--head", required=True)
+    parser.add_argument("--head-repository", default="")
+    parser.add_argument("--head-sha", default="")
     parser.add_argument("--base", required=True)
     parser.add_argument("--beta-exists", required=True, type=parse_bool)
+    parser.add_argument("--beta-sha", default="")
     parser.add_argument("--changed-files-file", required=True)
     parser.add_argument("--repository-root", default=".")
     args = parser.parse_args(argv)
@@ -123,6 +157,10 @@ def main(argv=None):
         args.base,
         changed_files,
         args.beta_exists,
+        repository=args.repository,
+        head_repository=args.head_repository,
+        head_sha=args.head_sha,
+        beta_sha=args.beta_sha,
     )
     print(f"{'PASS' if allowed else 'FAIL'}: {args.repository}: WF-01 routing: {reason}")
     layout_allowed, layout_reason = evaluate_home_assistant_app_layout(args.repository_root)
