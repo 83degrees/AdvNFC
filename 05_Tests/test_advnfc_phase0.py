@@ -97,7 +97,7 @@ def test_capability_sensor_updates_after_successful_mapping_activation():
 
 def test_administration_interface_has_distinct_minor_version():
     manifest = json.loads(_text(MANIFEST))
-    assert manifest["version"] == "1.5.0"
+    assert manifest["version"] == "1.6.0"
     assert "`1.4.0`" in _text(HACS_DEPLOYMENT)
 
 
