@@ -2,6 +2,15 @@ name: ASTV-357 disposable staging
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Verification mode
+        required: true
+        default: read_only
+        type: choice
+        options:
+          - read_only
+          - controlled_lifecycle
 
 permissions:
   contents: read
@@ -106,6 +115,7 @@ jobs:
             > "${stage_root}/config-write-proof.json"
 
       - name: Verify identity, baseline, doubles, and stop boundary
+        if: inputs.mode != 'controlled_lifecycle'
         shell: bash
         run: |
           set -euo pipefail
@@ -113,6 +123,28 @@ jobs:
           docker exec "${STAGE_CONTAINER}" python /config/staging/verify_stage.py
           sudo cp "${stage_root}/config/staging/stage-evidence.json" "${stage_root}/stage-evidence.json"
           sudo chown "$(id -u):$(id -g)" "${stage_root}/stage-evidence.json"
+
+      - name: Execute authorized controlled lifecycle
+        if: inputs.mode == 'controlled_lifecycle'
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
+          docker exec \
+            --env GITHUB_ACTOR="${GITHUB_ACTOR}" \
+            --env GITHUB_RUN_ID="${GITHUB_RUN_ID}" \
+            --env GITHUB_SHA="${GITHUB_SHA}" \
+            "${STAGE_CONTAINER}" \
+            python /config/staging/execute_lifecycle.py
+          sudo cp "${stage_root}/config/staging/stage-evidence.json" "${stage_root}/stage-evidence.json"
+          sudo cp "${stage_root}/config/staging/lifecycle-evidence.json" "${stage_root}/lifecycle-evidence.json"
+          sudo chown "$(id -u):$(id -g)" "${stage_root}/stage-evidence.json" "${stage_root}/lifecycle-evidence.json"
+
+      - name: Verify segregation and final restoration
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
 
           sudo test ! -e "${stage_root}/config/ASTV-357/gateway-spy.jsonl"
           ! sudo grep -R -E -i \
@@ -122,7 +154,13 @@ jobs:
 
           before="$(grep 'AdvNFC/advnfc_tag_mapping.yaml$' "${stage_root}/config-sha256.txt" | cut -d' ' -f1)"
           after="$(sudo sha256sum "${stage_root}/config/AdvNFC/advnfc_tag_mapping.yaml" | cut -d' ' -f1)"
-          test "${before}" = "${after}"
+          if test "${{ inputs.mode }}" = 'controlled_lifecycle'; then
+            jq -e \
+              '.outcome == "pass" and .baseline_restoration.logical_exact == true and .gateway_sink.invocations == 0' \
+              "${stage_root}/lifecycle-evidence.json" >/dev/null
+          else
+            test "${before}" = "${after}"
+          fi
 
       - name: Capture logs and dispose stage
         if: always()
@@ -131,6 +169,12 @@ jobs:
           stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt" 2>/dev/null || true)"
           if test -n "${stage_root}" && test -d "${stage_root}"; then
             docker logs "${STAGE_CONTAINER}" > "${stage_root}/home-assistant.log" 2>&1 || true
+            for evidence_name in stage-evidence.json lifecycle-evidence.json; do
+              if sudo test -f "${stage_root}/config/staging/${evidence_name}"; then
+                sudo cp "${stage_root}/config/staging/${evidence_name}" "${stage_root}/${evidence_name}"
+                sudo chown "$(id -u):$(id -g)" "${stage_root}/${evidence_name}"
+              fi
+            done
           fi
           docker rm --force "${STAGE_CONTAINER}" >/dev/null 2>&1 || true
           if docker ps --all --format '{{.Names}}' | grep -qx "${STAGE_CONTAINER}"; then
@@ -160,6 +204,7 @@ jobs:
             ${{ runner.temp }}/astv-357-stage/ha-process-uid.txt
             ${{ runner.temp }}/astv-357-stage/ha-process-gid.txt
             ${{ runner.temp }}/astv-357-stage/home-assistant.log
+            ${{ runner.temp }}/astv-357-stage/lifecycle-evidence.json
             ${{ runner.temp }}/astv-357-stage/stage-evidence.json
           if-no-files-found: error
           retention-days: 30
