@@ -1,0 +1,84 @@
+script:
+  astv_intent_gateway:
+    alias: ASTV-357 - Inert ASTV Gateway Spy
+    description: Records only to staging-local storage and cannot dispatch actions
+    mode: queued
+    max: 10
+    fields:
+      intent_id:
+        required: true
+        selector:
+          text:
+      input_area_override:
+        selector:
+          text:
+      trigger_entity:
+        selector:
+          text:
+    sequence:
+      - action: astv_staging_sink.record_invocation
+        data:
+          intent_id: "{{ intent_id }}"
+          input_area_override: "{{ input_area_override | default('', true) }}"
+          trigger_entity: "{{ trigger_entity | default('', true) }}"
+
+  advnfc_find_tag_record:
+    alias: 'AdvNFC - Fn: Find Tag Record'
+    mode: parallel
+    max: 10
+    fields:
+      uid:
+        required: true
+        selector:
+          text:
+    sequence:
+      - action: advnfc.find_tag_record
+        data:
+          uid: "{{ uid }}"
+        response_variable: tag_record_response
+      - stop: Tag lookup complete
+        response_variable: tag_record_response
+
+  advnfc_select_tag_action:
+    alias: AdvNFC - Select Tag Action
+    mode: parallel
+    max: 10
+    fields:
+      tag_record:
+        required: true
+        selector:
+          object:
+      trigger_entity:
+        selector:
+          text:
+    sequence:
+      - action: script.astv_intent_gateway
+        data:
+          intent_id: "{{ tag_record.action.intent_id }}"
+          input_area_override: "{{ tag_record.area_override | default('', true) }}"
+          trigger_entity: "{{ trigger_entity | default('', true) }}"
+
+  advnfc_uid_gateway:
+    alias: AdvNFC - UID Gateway
+    mode: parallel
+    max: 10
+    fields:
+      uid:
+        required: true
+        selector:
+          text:
+      trigger_entity:
+        selector:
+          text:
+    sequence:
+      - action: script.advnfc_find_tag_record
+        data:
+          uid: "{{ uid }}"
+        response_variable: tag_record_response
+      - condition: template
+        value_template: "{{ tag_record_response | default({}, true) | count > 0 }}"
+      - action: script.advnfc_select_tag_action
+        data:
+          tag_record: "{{ tag_record_response }}"
+          trigger_entity: "{{ trigger_entity | default('', true) }}"
+
