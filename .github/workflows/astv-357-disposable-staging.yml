@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      ADVNFC_TAG: v1.6.0-beta.288e3df
-      ADVNFC_SHA: 288e3df5187a5c37e44feda202cc570f9eb539e0
+      ADVNFC_TAG: v1.6.0-beta.dbef2f5
+      ADVNFC_SHA: dbef2f5133d2efb6f426b348916dc0c58ec1e147
       HA_IMAGE: ghcr.io/home-assistant/home-assistant:2026.9.4
       STAGE_CONTAINER: astv357-disposable-stage
 

@@ -123,8 +123,8 @@ async def verify(token: str) -> dict[str, object]:
         "stage_area": {"id": area["area_id"], "name": area["name"]},
         "advnfc": {
             "manifest_version": "1.6.0",
-            "accepted_tag": "v1.6.0-beta.288e3df",
-            "accepted_sha": "288e3df5187a5c37e44feda202cc570f9eb539e0",
+            "accepted_tag": "v1.6.0-beta.dbef2f5",
+            "accepted_sha": "dbef2f5133d2efb6f426b348916dc0c58ec1e147",
             "capabilities": advnfc_capabilities,
             "status": status,
             "list_response": mappings,

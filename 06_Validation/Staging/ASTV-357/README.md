@@ -2,8 +2,8 @@
 
 This fixture provisions a one-shot Home Assistant staging instance for the
 G4-authorised ASTV-357 isolation phase. The workflow copies AdvNFC only from
-immutable tag `v1.6.0-beta.288e3df`, verifies that the tag resolves to
-`288e3df5187a5c37e44feda202cc570f9eb539e0`, and runs Home Assistant Core
+immutable tag `v1.6.0-beta.dbef2f5`, verifies that the tag resolves to
+`dbef2f5133d2efb6f426b348916dc0c58ec1e147`, and runs Home Assistant Core
 `2026.9.4` in a container with `--network none` and no published ports.
 
 The fixture deliberately contains:
