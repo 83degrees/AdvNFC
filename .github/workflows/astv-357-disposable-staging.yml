@@ -1,0 +1,130 @@
+name: ASTV-357 disposable staging
+
+on:
+  push:
+    branches:
+      - gsheldon/astv-357-disposable-staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-isolated-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ADVNFC_TAG: v1.6.0-beta.288e3df
+      ADVNFC_SHA: 288e3df5187a5c37e44feda202cc570f9eb539e0
+      HA_IMAGE: ghcr.io/home-assistant/home-assistant:2026.9.4
+      STAGE_CONTAINER: astv357-disposable-stage
+
+    steps:
+      - name: Check out governed candidate and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble private staging configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="${RUNNER_TEMP}/astv-357-stage"
+          config_root="${stage_root}/config"
+          mkdir -p "${config_root}/custom_components"
+          cp -R 06_Validation/Staging/ASTV-357/config/. "${config_root}/"
+
+          resolved_sha="$(git rev-list -n 1 "${ADVNFC_TAG}")"
+          test "${resolved_sha}" = "${ADVNFC_SHA}"
+          git archive "${ADVNFC_TAG}" custom_components/advnfc | tar -x -C "${config_root}"
+
+          printf '%s\n' "${resolved_sha}" > "${stage_root}/advnfc-tag-sha.txt"
+          git rev-parse "${ADVNFC_TAG}:custom_components/advnfc" > "${stage_root}/advnfc-tree.txt"
+          find "${config_root}" -type f -print0 | sort -z | xargs -0 sha256sum > "${stage_root}/config-sha256.txt"
+          printf '%s\n' "${stage_root}" > "${RUNNER_TEMP}/astv357-stage-root.txt"
+
+      - name: Start network-isolated Home Assistant stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
+          docker pull "${HA_IMAGE}"
+          docker image inspect "${HA_IMAGE}" --format '{{json .RepoDigests}}' > "${stage_root}/ha-image-repodigests.json"
+          docker run --detach \
+            --name "${STAGE_CONTAINER}" \
+            --network none \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+            --tmpfs /run:rw,noexec,nosuid,size=64m \
+            --volume "${stage_root}/config:/config:rw" \
+            "${HA_IMAGE}"
+
+          for attempt in $(seq 1 120); do
+            if docker exec "${STAGE_CONTAINER}" python -c "import socket; connection=socket.create_connection(('127.0.0.1', 8123), 2); connection.close()" 2>/dev/null; then
+              sleep 2
+              break
+            fi
+            if ! docker inspect "${STAGE_CONTAINER}" --format '{{.State.Running}}' | grep -qx true; then
+              docker logs "${STAGE_CONTAINER}"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker inspect "${STAGE_CONTAINER}" \
+            --format '{"id":"{{.Id}}","image":"{{.Image}}","network_mode":"{{.HostConfig.NetworkMode}}","published_ports":{{json .HostConfig.PortBindings}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' \
+            > "${stage_root}/container-isolation.json"
+
+      - name: Verify identity, baseline, doubles, and stop boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
+          docker exec "${STAGE_CONTAINER}" python /config/staging/verify_stage.py
+          cp "${stage_root}/config/staging/stage-evidence.json" "${stage_root}/stage-evidence.json"
+
+          test ! -e "${stage_root}/config/ASTV-357/gateway-spy.jsonl"
+          ! grep -R -E -i \
+            '(ha-starburst|assistive/nfc|advnfc/[A-Za-z0-9_-]+/last_uid|mqtt:|password:|token:|api_key:)' \
+            "${stage_root}/config" \
+            --exclude='stage-evidence.json'
+
+          before="$(grep 'AdvNFC/advnfc_tag_mapping.yaml$' "${stage_root}/config-sha256.txt" | cut -d' ' -f1)"
+          after="$(sha256sum "${stage_root}/config/AdvNFC/advnfc_tag_mapping.yaml" | cut -d' ' -f1)"
+          test "${before}" = "${after}"
+
+      - name: Capture logs and dispose stage
+        if: always()
+        shell: bash
+        run: |
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt" 2>/dev/null || true)"
+          if test -n "${stage_root}" && test -d "${stage_root}"; then
+            docker logs "${STAGE_CONTAINER}" > "${stage_root}/home-assistant.log" 2>&1 || true
+          fi
+          docker rm --force "${STAGE_CONTAINER}" >/dev/null 2>&1 || true
+          if docker ps --all --format '{{.Names}}' | grep -qx "${STAGE_CONTAINER}"; then
+            echo "Disposable stage still exists after removal" >&2
+            exit 1
+          fi
+          if test -n "${stage_root}" && test -d "${stage_root}"; then
+            printf '%s\n' 'container_removed=true' > "${stage_root}/disposal.txt"
+          fi
+
+      - name: Upload immutable staging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: astv-357-disposable-staging-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/astv-357-stage/advnfc-tag-sha.txt
+            ${{ runner.temp }}/astv-357-stage/advnfc-tree.txt
+            ${{ runner.temp }}/astv-357-stage/config-sha256.txt
+            ${{ runner.temp }}/astv-357-stage/container-isolation.json
+            ${{ runner.temp }}/astv-357-stage/disposal.txt
+            ${{ runner.temp }}/astv-357-stage/ha-image-repodigests.json
+            ${{ runner.temp }}/astv-357-stage/home-assistant.log
+            ${{ runner.temp }}/astv-357-stage/stage-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+

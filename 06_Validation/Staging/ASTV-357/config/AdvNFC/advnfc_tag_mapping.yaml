@@ -1,0 +1,63 @@
+tag_mapping_schema_version: 1
+tags:
+  04689C36C82A81:
+    label: LBC News (Shorefoot)
+    action:
+      type: astv_intent
+      intent_id: lbc_news
+  04E38B36C82A81:
+    label: Classic FM (Shorefoot)
+    action:
+      type: astv_intent
+      intent_id: classic_fm
+  04EA9236C82A81:
+    label: Gold Radio (Shorefoot)
+    action:
+      type: astv_intent
+      intent_id: gold_radio
+  689C36C82A81:
+    label: LBC News
+    action:
+      type: astv_intent
+      intent_id: lbc_news
+  7AB06354E000:
+    label: Dad - Classic FM
+    action:
+      type: astv_intent
+      intent_id: classic_fm
+  DEADBEEF:
+    label: BBC Radio 2
+    action:
+      type: astv_intent
+      intent_id: bbc_radio_2
+  DEADLBC:
+    label: LBC Radio
+    action:
+      type: astv_intent
+      intent_id: lbc_radio
+  DEADMORNING:
+    label: Morning Routine
+    action:
+      type: astv_intent
+      intent_id: morning_routine
+  DEADNEWSBRIEF:
+    label: News Briefing
+    action:
+      type: astv_intent
+      intent_id: news_briefing
+  DEADSMOOTH:
+    label: Smooth Radio
+    action:
+      type: astv_intent
+      intent_id: smooth_radio
+  E38B36C82A81:
+    label: Classic FM
+    action:
+      type: astv_intent
+      intent_id: classic_fm
+  EA9236C82A81:
+    label: Gold Radio
+    action:
+      type: astv_intent
+      intent_id: gold_radio
+
