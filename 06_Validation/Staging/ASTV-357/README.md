@@ -1,10 +1,11 @@
 # ASTV-357 Disposable Staging Fixture
 
 This fixture provisions a one-shot Home Assistant staging instance for the
-G4-authorised ASTV-357 isolation phase. The workflow copies AdvNFC only from
-immutable tag `v1.6.0-beta.dbef2f5`, verifies that the tag resolves to
-`dbef2f5133d2efb6f426b348916dc0c58ec1e147`, and runs Home Assistant Core
-`2026.9.4` in a container with `--network none` and no published ports.
+ASTV-357 isolation and controlled-lifecycle validation. The workflow copies
+AdvNFC only from immutable tag `v1.6.0-beta.dbef2f5`, verifies that the tag
+resolves to `dbef2f5133d2efb6f426b348916dc0c58ec1e147`, and runs Home
+Assistant Core `2026.9.4` in a container with `--network none` and no
+published ports.
 
 The fixture deliberately contains:
 
@@ -13,14 +14,29 @@ The fixture deliberately contains:
 - an inert file-only gateway spy/sink;
 - no MQTT configuration, reader listener automation, production URL,
   credential, device integration, or repository secret; and
-- no create, update, delete, Save, reload, or Activate call.
+- fail-closed lifecycle assertions with no automatic retry and unconditional
+  disposal.
 
-The verification step creates only one staging-local area registry entry,
-reads the AdvNFC and ASTV administration surfaces, proves that the reserved UID
-`A3570001` is absent, and confirms that the gateway spy was not invoked. The
-container is then removed. The complete disposable configuration and evidence
-are uploaded as a retained GitHub Actions artifact.
+The original read-only mode creates one staging-local area registry entry,
+reads the AdvNFC and ASTV administration surfaces, proves that reserved UID
+`A3570001` is absent, and confirms that the gateway spy was not invoked.
 
-Do not extend this workflow with the write/activation lifecycle until Linear
-records a subsequent explicit human approval of that controlled sequence.
+A later, separately authorised single run used the controlled lifecycle mode
+to create and Save `A3570001` with `classic_fm`, explicitly Activate it, edit
+and Save it with area `astv_357_staging_area`, Activate the edit, reject a
+duplicate UID without side effects, delete and Save the synthetic record, and
+perform the final Activate. That run completed successfully and received G5
+human acceptance. It recorded zero gateway invocations, restored the exact
+twelve-record logical staging baseline and original content-derived revision,
+and independently confirmed that the twelve-record production state was
+unchanged. Serializer normalization made the restored staging file logically,
+but not byte-for-byte, identical to its starting form.
+
+Both modes remove the container unconditionally and upload configuration
+identity/hashes, responses, isolation proof, logs, and disposal evidence as a
+retained GitHub Actions artifact. The workflow remains manual-dispatch only.
+The completed single-run authority does not permit another lifecycle run;
+fresh explicit human approval is required before any further controlled
+lifecycle execution. Production operations are never authorised by this
+fixture.
 
