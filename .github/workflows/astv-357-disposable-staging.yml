@@ -58,7 +58,9 @@ jobs:
             --tmpfs /tmp:rw,noexec,nosuid,size=256m \
             --tmpfs /run:rw,nosuid,size=64m \
             --volume "${stage_root}/config:/config:rw" \
-            "${HA_IMAGE}"
+            --entrypoint python3 \
+            "${HA_IMAGE}" \
+            -m homeassistant --config /config
 
           for attempt in $(seq 1 120); do
             if docker exec "${STAGE_CONTAINER}" python -c "import socket; connection=socket.create_connection(('127.0.0.1', 8123), 2); connection.close()" 2>/dev/null; then
