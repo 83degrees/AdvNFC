@@ -3,3 +3,4 @@
 # Transitive dependencies are intentionally not locked by this file.
 pytest>=9.1.1,<10
 PyYAML>=6.0.3,<7
+homeassistant==2026.9.4

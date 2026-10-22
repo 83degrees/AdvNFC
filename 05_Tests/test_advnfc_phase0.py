@@ -95,10 +95,10 @@ def test_capability_sensor_updates_after_successful_mapping_activation():
     assert '"activation_required": self._store.activation_required' in sensor
 
 
-def test_administration_interface_has_distinct_minor_version():
+def test_hacs_runbook_tracks_manifest_version():
     manifest = json.loads(_text(MANIFEST))
     assert manifest["version"] == "1.6.0"
-    assert "`1.4.0`" in _text(HACS_DEPLOYMENT)
+    assert "`1.6.0`" in _text(HACS_DEPLOYMENT)
 
 
 def test_tag_mapping_preserves_existing_phase_zero_records():
