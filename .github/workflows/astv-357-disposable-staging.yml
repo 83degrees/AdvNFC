@@ -40,13 +40,37 @@ jobs:
           find "${config_root}" -type f -print0 | sort -z | xargs -0 sha256sum > "${stage_root}/config-sha256.txt"
           printf '%s\n' "${stage_root}" > "${RUNNER_TEMP}/astv357-stage-root.txt"
 
+      - name: Inspect image identity and correct private config ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
+          config_root="${stage_root}/config"
+
+          docker pull "${HA_IMAGE}"
+          docker image inspect "${HA_IMAGE}" --format '{{json .RepoDigests}}' > "${stage_root}/ha-image-repodigests.json"
+          docker image inspect "${HA_IMAGE}" --format '{{json .Config.User}}' > "${stage_root}/ha-image-config-user.json"
+
+          ha_uid="$(docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --entrypoint python3 "${HA_IMAGE}" -c 'import os; print(os.getuid())')"
+          ha_gid="$(docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --entrypoint python3 "${HA_IMAGE}" -c 'import os; print(os.getgid())')"
+          test "${ha_uid}" -ge 0
+          test "${ha_gid}" -ge 0
+          printf '%s\n' "${ha_uid}" > "${stage_root}/ha-process-uid.txt"
+          printf '%s\n' "${ha_gid}" > "${stage_root}/ha-process-gid.txt"
+
+          stat --format '{"uid":%u,"gid":%g,"mode":"%a","path":"%n"}' "${config_root}" > "${stage_root}/config-permissions-before.json"
+          sudo chown -R "${ha_uid}:${ha_gid}" "${config_root}"
+          sudo chmod -R u+rwX,go-rwx "${config_root}"
+          stat --format '{"uid":%u,"gid":%g,"mode":"%a","path":"%n"}' "${config_root}" > "${stage_root}/config-permissions-after.json"
+          test "$(stat --format '%u' "${config_root}")" = "${ha_uid}"
+          test "$(stat --format '%g' "${config_root}")" = "${ha_gid}"
+          test "$(stat --format '%a' "${config_root}")" = "700"
+
       - name: Start network-isolated Home Assistant stage
         shell: bash
         run: |
           set -euo pipefail
           stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
-          docker pull "${HA_IMAGE}"
-          docker image inspect "${HA_IMAGE}" --format '{{json .RepoDigests}}' > "${stage_root}/ha-image-repodigests.json"
           docker run --detach \
             --name "${STAGE_CONTAINER}" \
             --network none \
@@ -75,22 +99,29 @@ jobs:
             --format '{"id":"{{.Id}}","image":"{{.Image}}","network_mode":"{{.HostConfig.NetworkMode}}","published_ports":{{json .HostConfig.PortBindings}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' \
             > "${stage_root}/container-isolation.json"
 
+          docker exec "${STAGE_CONTAINER}" python3 -c \
+            'from pathlib import Path; p=Path("/config/ASTV-357/private-config-write-proof"); p.parent.mkdir(parents=True, exist_ok=True); p.write_text("private-stage-write-ok\n", encoding="utf-8")'
+          docker exec "${STAGE_CONTAINER}" python3 -c \
+            'import json, os; from pathlib import Path; p=Path("/config/ASTV-357/private-config-write-proof"); s=p.stat(); print(json.dumps({"content": p.read_text(encoding="utf-8").strip(), "uid": s.st_uid, "gid": s.st_gid, "mode": oct(s.st_mode & 0o777), "path": str(p)}))' \
+            > "${stage_root}/config-write-proof.json"
+
       - name: Verify identity, baseline, doubles, and stop boundary
         shell: bash
         run: |
           set -euo pipefail
           stage_root="$(cat "${RUNNER_TEMP}/astv357-stage-root.txt")"
           docker exec "${STAGE_CONTAINER}" python /config/staging/verify_stage.py
-          cp "${stage_root}/config/staging/stage-evidence.json" "${stage_root}/stage-evidence.json"
+          sudo cp "${stage_root}/config/staging/stage-evidence.json" "${stage_root}/stage-evidence.json"
+          sudo chown "$(id -u):$(id -g)" "${stage_root}/stage-evidence.json"
 
-          test ! -e "${stage_root}/config/ASTV-357/gateway-spy.jsonl"
-          ! grep -R -E -i \
+          sudo test ! -e "${stage_root}/config/ASTV-357/gateway-spy.jsonl"
+          ! sudo grep -R -E -i \
             '(ha-starburst|assistive/nfc|advnfc/[A-Za-z0-9_-]+/last_uid|mqtt:|password:|token:|api_key:)' \
             "${stage_root}/config" \
             --exclude='stage-evidence.json'
 
           before="$(grep 'AdvNFC/advnfc_tag_mapping.yaml$' "${stage_root}/config-sha256.txt" | cut -d' ' -f1)"
-          after="$(sha256sum "${stage_root}/config/AdvNFC/advnfc_tag_mapping.yaml" | cut -d' ' -f1)"
+          after="$(sudo sha256sum "${stage_root}/config/AdvNFC/advnfc_tag_mapping.yaml" | cut -d' ' -f1)"
           test "${before}" = "${after}"
 
       - name: Capture logs and dispose stage
@@ -119,9 +150,15 @@ jobs:
             ${{ runner.temp }}/astv-357-stage/advnfc-tag-sha.txt
             ${{ runner.temp }}/astv-357-stage/advnfc-tree.txt
             ${{ runner.temp }}/astv-357-stage/config-sha256.txt
+            ${{ runner.temp }}/astv-357-stage/config-permissions-before.json
+            ${{ runner.temp }}/astv-357-stage/config-permissions-after.json
+            ${{ runner.temp }}/astv-357-stage/config-write-proof.json
             ${{ runner.temp }}/astv-357-stage/container-isolation.json
             ${{ runner.temp }}/astv-357-stage/disposal.txt
+            ${{ runner.temp }}/astv-357-stage/ha-image-config-user.json
             ${{ runner.temp }}/astv-357-stage/ha-image-repodigests.json
+            ${{ runner.temp }}/astv-357-stage/ha-process-uid.txt
+            ${{ runner.temp }}/astv-357-stage/ha-process-gid.txt
             ${{ runner.temp }}/astv-357-stage/home-assistant.log
             ${{ runner.temp }}/astv-357-stage/stage-evidence.json
           if-no-files-found: error

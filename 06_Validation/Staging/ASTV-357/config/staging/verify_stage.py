@@ -87,11 +87,13 @@ async def verify(token: str) -> dict[str, object]:
             assert auth_result["type"] == "auth_ok", auth_result
 
             area = await ws_command(socket, 1, type="config/area_registry/create", name="ASTV-357 staging area")
-            status = await call_service(socket, 2, "advnfc", "get_administration_status")
-            mappings = await call_service(socket, 3, "advnfc", "list_tag_mappings")
-            capabilities = await call_service(socket, 4, "astv_intent_catalogue", "get_administration_capabilities")
-            intents = await call_service(socket, 5, "astv_intent_catalogue", "list_intent_records", {"limit": 200})
-            services = await ws_command(socket, 6, type="get_services")
+            config = await ws_command(socket, 2, type="get_config")
+            advnfc_capabilities = await call_service(socket, 3, "advnfc", "get_administration_capabilities")
+            status = await call_service(socket, 4, "advnfc", "get_administration_status")
+            mappings = await call_service(socket, 5, "advnfc", "list_tag_mappings")
+            capabilities = await call_service(socket, 6, "astv_intent_catalogue", "get_administration_capabilities")
+            intents = await call_service(socket, 7, "astv_intent_catalogue", "list_intent_records", {"limit": 200})
+            services = await ws_command(socket, 8, type="get_services")
 
     observed_uids = [mapping["uid"] for mapping in mappings["mappings"]]
     observed_intents = [record["intent_id"] for record in intents["records"]]
@@ -112,19 +114,27 @@ async def verify(token: str) -> dict[str, object]:
     return {
         "observed_at": datetime.now(UTC).isoformat(),
         "home_assistant_version": auth_result["ha_version"],
+        "health": {
+            "websocket_authenticated": True,
+            "state": config["state"],
+            "version": config["version"],
+        },
         "stage_name": "ASTV-357 Disposable Staging",
         "stage_area": {"id": area["area_id"], "name": area["name"]},
         "advnfc": {
             "manifest_version": "1.6.0",
             "accepted_tag": "v1.6.0-beta.288e3df",
             "accepted_sha": "288e3df5187a5c37e44feda202cc570f9eb539e0",
+            "capabilities": advnfc_capabilities,
             "status": status,
+            "list_response": mappings,
             "uids": observed_uids,
             "reserved_uid_absent": True,
         },
         "astv_catalogue_double": {
             "capabilities": capabilities,
             "active_revision": intents["active_revision"],
+            "list_response": intents,
             "intent_ids": observed_intents,
         },
         "gateway_sink": {
