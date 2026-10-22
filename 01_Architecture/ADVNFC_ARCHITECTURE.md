@@ -149,6 +149,13 @@ services provide capability discovery, normalized collection reads, canonical
 UID lookup, typed-action target query, candidate/record validation, and
 persisted create/update/delete operations.
 
+Parameterized manage services use explicit closed Home Assistant service-data
+schemas at registration. This outer transport boundary accepts only the
+documented object and string fields and rejects malformed or unexpected outer
+fields before authorization-protected handlers run. Accepted candidate and
+record objects continue unchanged into the provider's closed schema-v1
+canonicalisation and validation boundary.
+
 Read/query results are projections of the active immutable validated snapshot.
 Consumers never read or write `advnfc_tag_mapping.yaml` and interact only with
 normalized schema-v1 records. Responses carry independent

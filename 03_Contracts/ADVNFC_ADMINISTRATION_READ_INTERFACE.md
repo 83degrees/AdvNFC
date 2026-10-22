@@ -31,6 +31,15 @@ The interface uses response-only Home Assistant services:
 | Delete | `advnfc.delete_tag_mapping` | `expected_revision`, `uid` |
 | Activate/reload | `advnfc.reload_tag_mapping` | none |
 
+Home Assistant registers each parameterised manage operation with an explicit,
+closed service-data schema. The outer payload accepts exactly the fields shown
+above: `candidate` and `mapping` are objects, while `expected_revision` and
+`uid` are strings. Missing fields, values of the wrong outer type, and
+unexpected outer fields are rejected by Home Assistant before the provider
+handler runs. The accepted object values are then passed intact to AdvNFC's
+existing closed schema-v1 canonicalisation and validation; the transport
+schema does not remove nested fields or replace provider validation.
+
 Validation calls do not write or activate state. Create, update, and delete
 replace persisted state but do not activate it. Reload is the sole
 provider-owned managed activation operation.
