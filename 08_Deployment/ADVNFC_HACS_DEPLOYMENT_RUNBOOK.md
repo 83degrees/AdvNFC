@@ -7,11 +7,13 @@ This runbook applies the governed route:
 `haos_integration -> hacs -> HOME_ASSISTANT_INTEGRATION_DEPLOYMENT_STANDARD.md`
 
 The authoritative integration source is `custom_components/advnfc/**`; its
-stable version is the `version` in `manifest.json`, currently `1.6.0`. This
-runbook does not authorise Beta deployment, stable promotion, production
-deployment, or rollback. Once explicit stable-promotion authority exists,
-stable tag and GitHub Release creation follow through the approved HACS
-mechanism.
+manifest/candidate version is the `version` in `manifest.json`, currently
+`1.6.0`. This does not represent a released stable tag; the last separately
+released stable tag remains `v1.4.0` until an explicitly authorised stable
+promotion completes. This runbook does not authorise Beta deployment, stable
+promotion, production deployment, or rollback. Once explicit stable-promotion
+authority exists, stable tag and GitHub Release creation follow through the
+approved HACS mechanism.
 
 HACS is the sole future GitHub Release consumer for this repository.
 Historical `reader-agent-*` Git tags remain as migration provenance, but they
