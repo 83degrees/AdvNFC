@@ -1,9 +1,6 @@
 name: ASTV-357 disposable staging
 
 on:
-  push:
-    branches:
-      - gsheldon/astv-357-disposable-staging
   workflow_dispatch:
 
 permissions:
