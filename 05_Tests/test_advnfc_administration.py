@@ -316,3 +316,82 @@ def test_create_and_update_enforce_provider_semantics(
         path, store.active.revision, record, set().__contains__
     )
     assert response["error"]["code"] == code
+
+
+def test_isolated_crud_activation_cycle_restores_logical_baseline(tmp_path):
+    """Exercise the proposed live lifecycle without touching Home Assistant."""
+
+    store, path = _store(tmp_path)
+    baseline = store.administration_list()["mappings"]
+    baseline_record = baseline[0]
+    assert store.active is not None
+
+    created = store.administration_create(
+        path,
+        store.administration_status(path, set().__contains__)["persisted_revision"],
+        _record("A3570001", "ASTV-357 isolated test"),
+        set().__contains__,
+    )
+    assert created["ok"] is True
+    assert created["activation_required"] is True
+    assert store.administration_list()["mappings"] == baseline
+    assert store.administration_status(path, set().__contains__)["persisted_count"] == 2
+
+    first_activation = store.administration_activate(path, set().__contains__)
+    assert first_activation["ok"] is True
+    assert first_activation["activation_required"] is False
+    assert store.find("A3570001")["label"] == "ASTV-357 isolated test"
+    assert store.administration_get("A1")["mapping"] == baseline_record
+
+    updated = store.administration_update(
+        path,
+        first_activation["persisted_revision"],
+        _record("A3570001", "ASTV-357 isolated test updated"),
+        set().__contains__,
+    )
+    assert updated["ok"] is True
+    assert store.find("A3570001")["label"] == "ASTV-357 isolated test"
+
+    second_activation = store.administration_activate(path, set().__contains__)
+    assert second_activation["ok"] is True
+    assert store.find("A3570001")["label"] == "ASTV-357 isolated test updated"
+    assert store.administration_get("A1")["mapping"] == baseline_record
+
+    deleted = store.administration_delete(
+        path,
+        second_activation["persisted_revision"],
+        "A3570001",
+        set().__contains__,
+    )
+    assert deleted["ok"] is True
+    assert store.find("A3570001")["label"] == "ASTV-357 isolated test updated"
+
+    final_activation = store.administration_activate(path, set().__contains__)
+    assert final_activation["ok"] is True
+    assert final_activation["activation_required"] is False
+    assert store.administration_list()["mappings"] == baseline
+    assert store.administration_status(path, set().__contains__)["persisted_count"] == 1
+    assert store.administration_get("A1")["mapping"] == baseline_record
+
+
+def test_isolated_duplicate_uid_rejection_preserves_both_states(tmp_path):
+    store, path = _store(tmp_path)
+    before_bytes = path.read_bytes()
+    before_active = store.administration_list()["mappings"]
+    status = store.administration_status(path, set().__contains__)
+
+    duplicate = store.administration_create(
+        path,
+        status["persisted_revision"],
+        _record(" a1 ", "Duplicate"),
+        set().__contains__,
+    )
+
+    assert duplicate["ok"] is False
+    assert duplicate["error"]["code"] == "already_exists"
+    assert path.read_bytes() == before_bytes
+    assert store.administration_list()["mappings"] == before_active
+    after = store.administration_status(path, set().__contains__)
+    assert after["active_revision"] == status["active_revision"]
+    assert after["persisted_revision"] == status["persisted_revision"]
+    assert after["activation_required"] is False
