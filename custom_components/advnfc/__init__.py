@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import voluptuous as vol
 from homeassistant.const import Platform
 from homeassistant.core import (
     HomeAssistant,
@@ -36,6 +37,34 @@ SERVICE_UPDATE_TAG_MAPPING = "update_tag_mapping"
 SERVICE_DELETE_TAG_MAPPING = "delete_tag_mapping"
 DATA_STORE = "tag_mapping_store"
 SIGNAL_TAG_MAPPING_UPDATED = "advnfc_tag_mapping_updated"
+
+VALIDATE_TAG_MAPPING_SCHEMA = vol.Schema(
+    {vol.Required("candidate"): dict}, extra=vol.PREVENT_EXTRA
+)
+VALIDATE_TAG_MAPPING_RECORD_SCHEMA = vol.Schema(
+    {vol.Required("mapping"): dict}, extra=vol.PREVENT_EXTRA
+)
+CREATE_TAG_MAPPING_SCHEMA = vol.Schema(
+    {
+        vol.Required("expected_revision"): str,
+        vol.Required("mapping"): dict,
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+UPDATE_TAG_MAPPING_SCHEMA = vol.Schema(
+    {
+        vol.Required("expected_revision"): str,
+        vol.Required("mapping"): dict,
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+DELETE_TAG_MAPPING_SCHEMA = vol.Schema(
+    {
+        vol.Required("expected_revision"): str,
+        vol.Required("uid"): str,
+    },
+    extra=vol.PREVENT_EXTRA,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -202,6 +231,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_VALIDATE_TAG_MAPPING,
         validate_tag_mapping,
+        schema=VALIDATE_TAG_MAPPING_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     async_register_admin_service(
@@ -209,6 +239,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_VALIDATE_TAG_MAPPING_RECORD,
         validate_tag_mapping_record,
+        schema=VALIDATE_TAG_MAPPING_RECORD_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     async_register_admin_service(
@@ -216,6 +247,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_CREATE_TAG_MAPPING,
         create_tag_mapping,
+        schema=CREATE_TAG_MAPPING_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     async_register_admin_service(
@@ -223,6 +255,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_UPDATE_TAG_MAPPING,
         update_tag_mapping,
+        schema=UPDATE_TAG_MAPPING_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     async_register_admin_service(
@@ -230,6 +263,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN,
         SERVICE_DELETE_TAG_MAPPING,
         delete_tag_mapping,
+        schema=DELETE_TAG_MAPPING_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     await async_register_frontend(hass)

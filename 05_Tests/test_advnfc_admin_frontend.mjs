@@ -85,6 +85,43 @@ test("timeout is visible and does not become a provider outcome", async () => {
   );
 });
 
+test("timed-out save is reconciled without an automatic retry", async () => {
+  const calls = [];
+  let statusReads = 0;
+  const adapter = new AdvNfcProviderAdapter(
+    hassWith(async (message) => {
+      calls.push(message);
+      if (message.service === "get_administration_capabilities") {
+        return { context: {}, response: capabilities() };
+      }
+      if (message.service === "get_administration_status") {
+        statusReads += 1;
+        return { context: {}, response: {
+          ok: true,
+          active_revision: "active",
+          persisted_revision: statusReads === 1 ? "persisted-old" : "persisted-unknown",
+          activation_required: statusReads > 1,
+        } };
+      }
+      if (message.service === "list_tag_mappings") {
+        return { context: {}, response: { ok: true, mappings: [{ uid: "A1" }] } };
+      }
+      if (message.service === "create_tag_mapping") {
+        return new Promise(() => {});
+      }
+      throw new Error(`Unexpected service ${message.service}`);
+    }, true),
+    { timeoutMs: 5 },
+  );
+
+  const result = await adapter.guardedMutation("create", { mapping: { uid: "D4" } });
+
+  assert.equal(result.uncertain, true);
+  assert.equal(result.refreshed_status.persisted_revision, "persisted-unknown");
+  assert.deepEqual(result.refreshed_active.mappings, [{ uid: "A1" }]);
+  assert.equal(calls.filter((call) => call.service === "create_tag_mapping").length, 1);
+});
+
 test("non-admin clients cannot initiate manage operations", async () => {
   let called = false;
   const adapter = new AdvNfcProviderAdapter(hassWith(async () => {
@@ -161,6 +198,24 @@ test("explicit activation is separate, unguarded, and verifies revision equality
   const activation = calls.find((call) => call.service === "reload_tag_mapping");
   assert.deepEqual(activation.service_data, {});
   assert.equal(result.verified, true);
+});
+
+test("failed activation retains provider detail and never claims verification", async () => {
+  const adapter = new AdvNfcProviderAdapter(hassWith(async (message) => {
+    const response = message.service === "get_administration_capabilities"
+      ? capabilities()
+      : message.service === "get_administration_status"
+        ? { ok: true, active_revision: "active-old", persisted_revision: "persisted-new", activation_required: true }
+        : { ok: false, active_revision: "active-old", persisted_revision: "persisted-new", activation_required: true, error: { code: "invalid_candidate", message: "Candidate rejected" } };
+    return { context: {}, response };
+  }, true));
+
+  const result = await adapter.activate();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.category, "activation_failed");
+  assert.equal(result.error.code, "invalid_candidate");
+  assert.notEqual(result.verified, true);
 });
 
 test("AdvNFC provider codes normalize through the documented compatibility profile", () => {
