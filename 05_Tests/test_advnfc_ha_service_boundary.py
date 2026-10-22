@@ -7,10 +7,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import voluptuous as vol
 from homeassistant.core import Context, HomeAssistant, SupportsResponse
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import area_registry as ar
+import voluptuous as vol
 
 from custom_components import advnfc
 
