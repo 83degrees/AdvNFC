@@ -1,6 +1,6 @@
 script:
   astv_intent_gateway:
-    alias: ASTV-357 - Inert ASTV Gateway Spy
+    alias: AdvNFC validation - Inert ASTV Gateway Spy
     description: Records only to staging-local storage and cannot dispatch actions
     mode: queued
     max: 10
