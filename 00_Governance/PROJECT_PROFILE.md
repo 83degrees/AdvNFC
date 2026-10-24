@@ -148,7 +148,7 @@ repository does not introduce a different runtime configuration model.
 ## Repository source baseline
 
 The authoritative Home Assistant integration source is only
-`custom_components/advnfc/**`; its manifest is version `1.3.0`.
+`custom_components/advnfc/**`; its manifest is version `1.6.0`.
 
 The authoritative operator-selected Home Assistant configuration baseline is:
 
