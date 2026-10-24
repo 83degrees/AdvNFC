@@ -1,4 +1,9 @@
-"""Execute the human-authorized ASTV-357 lifecycle in disposable staging only."""
+"""Execute a separately authorized lifecycle in disposable staging only.
+
+This module is deliberately not reachable from the maintained workflow. Each
+use requires fresh action-specific human authority and a reviewed workflow
+change or equivalent controlled invocation.
+"""
 
 from __future__ import annotations
 
@@ -14,25 +19,31 @@ from typing import Any
 import aiohttp
 import yaml
 
-from verify_stage import BASE_URL, call_service, create_stage_token, verify, ws_command
+from verify_baseline import (
+    BASE_URL,
+    RESERVED_UID,
+    SPY_PATH,
+    call_service,
+    create_stage_token,
+    verify,
+    ws_command,
+)
 
 
 MAPPING_PATH = Path("/config/AdvNFC/advnfc_tag_mapping.yaml")
-STAGE_EVIDENCE_PATH = Path("/config/staging/stage-evidence.json")
-LIFECYCLE_EVIDENCE_PATH = Path("/config/staging/lifecycle-evidence.json")
-SPY_PATH = Path("/config/ASTV-357/gateway-spy.jsonl")
-TEST_UID = "A3570001"
-BASELINE_REVISION = "v1-986df5539173dad03cf231dd5fd094dbdc6024d1786ad721b18b84fe332c4173"
+STAGE_EVIDENCE_PATH = Path("/evidence/baseline-evidence.json")
+LIFECYCLE_EVIDENCE_PATH = Path("/evidence/lifecycle-evidence.json")
+TEST_UID = RESERVED_UID
 INITIAL_RECORD = {
     "uid": TEST_UID,
-    "label": "ASTV-357 isolated validation",
-    "action": {"type": "astv_intent", "intent_id": "classic_fm"},
+    "label": "Synthetic lifecycle validation",
+    "action": {"type": "astv_intent", "intent_id": "validation_primary"},
 }
 UPDATED_RECORD = {
     "uid": TEST_UID,
-    "label": "ASTV-357 isolated validation updated",
-    "area_override": "astv_357_staging_area",
-    "action": {"type": "astv_intent", "intent_id": "classic_fm"},
+    "label": "Synthetic lifecycle validation updated",
+    "area_override": "advnfc_validation_area",
+    "action": {"type": "astv_intent", "intent_id": "validation_primary"},
 }
 
 
@@ -153,12 +164,13 @@ async def execute_call(
 
 async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
     baseline = canonical(evidence["preflight"]["advnfc"]["list_response"]["mappings"])
-    require(len(baseline) == 12, "preflight baseline is not 12 records")
+    require(len(baseline) == 2, "preflight baseline is not two synthetic records")
     require(all(record["uid"] != TEST_UID for record in baseline), "reserved UID already exists")
     baseline_file = persisted_snapshot()
     require(baseline_file["mappings"] == baseline, "persisted preflight differs from active baseline")
+    baseline_revision = evidence["preflight"]["advnfc"]["status"]["active_revision"]
     evidence["baseline"] = {
-        "revision": BASELINE_REVISION,
+        "revision": baseline_revision,
         "mappings": baseline,
         "file": baseline_file,
     }
@@ -174,8 +186,8 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             initial = await read_state(socket, ids)
             require_common_state(initial, baseline)
             initial_status = initial["status"]
-            require(initial_status["active_count"] == initial_status["persisted_count"] == 12, "initial count mismatch")
-            require(initial_status["active_revision"] == initial_status["persisted_revision"] == BASELINE_REVISION, "initial revision mismatch")
+            require(initial_status["active_count"] == initial_status["persisted_count"] == 2, "initial count mismatch")
+            require(initial_status["active_revision"] == initial_status["persisted_revision"] == baseline_revision, "initial revision mismatch")
             require(initial_status["activation_required"] is False, "stage already requires activation")
             require(initial_status["last_activation_error"] is None, "stage has an activation error")
             evidence["initial_state"] = initial
@@ -197,13 +209,13 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(created["ok"] is True and created["mapping"] == INITIAL_RECORD, "create response failed")
             require_common_state(after_create, baseline)
             create_status = after_create["status"]
-            require(create_status["active_count"] == 12 and create_status["persisted_count"] == 13, "create count transition failed")
-            require(create_status["active_revision"] == BASELINE_REVISION, "create changed active revision")
-            require(create_status["persisted_revision"] == created["persisted_revision"] != BASELINE_REVISION, "create persisted revision failed")
+            require(create_status["active_count"] == 2 and create_status["persisted_count"] == 3, "create count transition failed")
+            require(create_status["active_revision"] == baseline_revision, "create changed active revision")
+            require(create_status["persisted_revision"] == created["persisted_revision"] != baseline_revision, "create persisted revision failed")
             require(create_status["activation_required"] is True, "create did not require activation")
             require(canonical(after_create["active_list"]["mappings"]) == baseline, "create changed active list")
             require(after_create["synthetic_lookup"] == {}, "create changed active routing before activation")
-            require(after_create["persisted"]["count"] == 13 and INITIAL_RECORD in after_create["persisted"]["mappings"], "created record not persisted")
+            require(after_create["persisted"]["count"] == 3 and INITIAL_RECORD in after_create["persisted"]["mappings"], "created record not persisted")
 
             activated_create, after_activate_create = await execute_call(
                 socket, ids, evidence, name="activate_created", service="reload_tag_mapping", mutating=True,
@@ -211,7 +223,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(activated_create["ok"] is True, "first activation failed")
             require_common_state(after_activate_create, baseline)
             first_status = after_activate_create["status"]
-            require(first_status["active_count"] == first_status["persisted_count"] == 13, "first activation count failed")
+            require(first_status["active_count"] == first_status["persisted_count"] == 3, "first activation count failed")
             require(first_status["active_revision"] == first_status["persisted_revision"] == created["persisted_revision"], "first activation revision failed")
             require(first_status["activation_required"] is False, "first activation remained pending")
             require(after_activate_create["synthetic_lookup"] == INITIAL_RECORD, "created record did not become active")
@@ -224,7 +236,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(updated["ok"] is True and updated["mapping"] == UPDATED_RECORD, "update response failed")
             require_common_state(after_update, baseline)
             update_status = after_update["status"]
-            require(update_status["active_count"] == update_status["persisted_count"] == 13, "update count transition failed")
+            require(update_status["active_count"] == update_status["persisted_count"] == 3, "update count transition failed")
             require(update_status["active_revision"] == first_status["active_revision"], "update changed active revision")
             require(update_status["persisted_revision"] == updated["persisted_revision"] != update_status["active_revision"], "update persisted revision failed")
             require(update_status["activation_required"] is True, "update did not require activation")
@@ -238,7 +250,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(activated_update["ok"] is True, "second activation failed")
             require_common_state(after_activate_update, baseline)
             second_status = after_activate_update["status"]
-            require(second_status["active_count"] == second_status["persisted_count"] == 13, "second activation count failed")
+            require(second_status["active_count"] == second_status["persisted_count"] == 3, "second activation count failed")
             require(second_status["active_revision"] == second_status["persisted_revision"] == updated["persisted_revision"], "second activation revision failed")
             require(second_status["activation_required"] is False, "second activation remained pending")
             require(after_activate_update["synthetic_lookup"] == UPDATED_RECORD, "updated record did not become active")
@@ -247,8 +259,8 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             duplicate_before = deepcopy(after_activate_update)
             duplicate_record = {
                 "uid": duplicate_uid,
-                "label": "ASTV-357 forbidden duplicate",
-                "action": {"type": "astv_intent", "intent_id": "classic_fm"},
+                "label": "Synthetic forbidden duplicate",
+                "action": {"type": "astv_intent", "intent_id": "validation_primary"},
             }
             duplicate, after_duplicate = await execute_call(
                 socket, ids, evidence, name="reject_baseline_duplicate", service="create_tag_mapping",
@@ -268,7 +280,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(deleted["ok"] is True and deleted["uid"] == TEST_UID, "delete response failed")
             require_common_state(after_delete, baseline)
             delete_status = after_delete["status"]
-            require(delete_status["active_count"] == 13 and delete_status["persisted_count"] == 12, "delete count transition failed")
+            require(delete_status["active_count"] == 3 and delete_status["persisted_count"] == 2, "delete count transition failed")
             require(delete_status["active_revision"] == second_status["active_revision"], "delete changed active revision")
             require(delete_status["persisted_revision"] == deleted["persisted_revision"], "delete persisted revision failed")
             require(delete_status["activation_required"] is True, "delete did not require activation")
@@ -281,7 +293,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
             require(final_activation["ok"] is True, "final activation failed")
             require_common_state(final_state, baseline)
             final_status = final_state["status"]
-            require(final_status["active_count"] == final_status["persisted_count"] == 12, "final count is not baseline")
+            require(final_status["active_count"] == final_status["persisted_count"] == 2, "final count is not baseline")
             require(final_status["active_revision"] == final_status["persisted_revision"], "final revisions differ")
             require(final_status["activation_required"] is False, "final activation remained pending")
             require(final_status["last_activation_error"] is None, "final activation recorded an error")
@@ -302,7 +314,7 @@ async def lifecycle(token: str, evidence: dict[str, Any]) -> None:
 
 async def main() -> None:
     evidence: dict[str, Any] = {
-        "authority": "ASTV-357 G4 controlled disposable-staging lifecycle",
+        "authority": "fresh action-specific authority required before invocation",
         "environment": "disposable isolated Home Assistant staging only",
         "operator": os.getenv("GITHUB_ACTOR", "unknown"),
         "workflow_run_id": os.getenv("GITHUB_RUN_ID", "unknown"),

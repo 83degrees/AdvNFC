@@ -1,0 +1,13 @@
+tag_mapping_schema_version: 1
+tags:
+  A3660001:
+    label: Synthetic validation record one
+    action:
+      type: astv_intent
+      intent_id: validation_primary
+  A3660002:
+    label: Synthetic validation record two
+    action:
+      type: astv_intent
+      intent_id: validation_secondary
+

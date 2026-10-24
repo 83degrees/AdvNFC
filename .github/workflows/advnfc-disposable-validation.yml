@@ -1,0 +1,186 @@
+name: AdvNFC disposable validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Non-mutating verification mode
+        required: true
+        default: baseline_read_only
+        type: choice
+        options:
+          - baseline_read_only
+          - schema_non_mutating
+
+permissions:
+  contents: read
+
+jobs:
+  verify-isolated-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HA_IMAGE: ghcr.io/home-assistant/home-assistant@sha256:3e6710a7ab2a61311d9d899b719f6c3657791c63e8f4942cec4ebc42401d6b76
+      STAGE_CONTAINER: advnfc-disposable-${{ github.run_id }}
+      TOOL_ROOT: 06_Validation/Tools/advnfc_disposable_ha
+
+    steps:
+      - name: Check out exact governed candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Assemble private staging configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="${RUNNER_TEMP}/advnfc-disposable-stage"
+          config_root="${stage_root}/config"
+          evidence_root="${stage_root}/evidence"
+          mkdir -p "${config_root}/custom_components" "${config_root}/staging" "${evidence_root}"
+          cp -R "${TOOL_ROOT}/config/." "${config_root}/"
+          cp "${TOOL_ROOT}/scripts/verify_baseline.py" "${config_root}/staging/"
+          cp "${TOOL_ROOT}/scripts/verify_admin_schemas.py" "${config_root}/staging/"
+          git archive HEAD custom_components/advnfc | tar -x -C "${config_root}"
+
+          python3 -c 'import secrets; print(secrets.token_urlsafe(32))' \
+            > "${config_root}/staging/onboarding-password"
+          chmod 600 "${config_root}/staging/onboarding-password"
+
+          git rev-parse HEAD > "${evidence_root}/candidate-sha.txt"
+          git rev-parse HEAD:custom_components/advnfc > "${evidence_root}/advnfc-tree.txt"
+          find "${config_root}" -type f ! -name onboarding-password -print0 \
+            | sort -z | xargs -0 sha256sum > "${evidence_root}/config-sha256.txt"
+          printf '%s\n' "${stage_root}" > "${RUNNER_TEMP}/advnfc-stage-root.txt"
+
+      - name: Inspect image identity and prepare private mounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/advnfc-stage-root.txt")"
+          config_root="${stage_root}/config"
+          evidence_root="${stage_root}/evidence"
+
+          docker pull "${HA_IMAGE}"
+          docker image inspect "${HA_IMAGE}" --format '{{json .RepoDigests}}' \
+            > "${evidence_root}/ha-image-repodigests.json"
+          docker image inspect "${HA_IMAGE}" --format '{{json .Config.User}}' \
+            > "${evidence_root}/ha-image-config-user.json"
+
+          ha_uid="$(docker run --rm --network none --cap-drop ALL \
+            --security-opt no-new-privileges --entrypoint python3 "${HA_IMAGE}" \
+            -c 'import os; print(os.getuid())')"
+          ha_gid="$(docker run --rm --network none --cap-drop ALL \
+            --security-opt no-new-privileges --entrypoint python3 "${HA_IMAGE}" \
+            -c 'import os; print(os.getgid())')"
+          test "${ha_uid}" -ge 0
+          test "${ha_gid}" -ge 0
+          printf '%s\n' "${ha_uid}" > "${evidence_root}/ha-process-uid.txt"
+          printf '%s\n' "${ha_gid}" > "${evidence_root}/ha-process-gid.txt"
+
+          sudo chown -R "${ha_uid}:${ha_gid}" "${config_root}" "${evidence_root}"
+          sudo chmod -R u+rwX,go-rwx "${config_root}" "${evidence_root}"
+          test "$(stat --format '%a' "${config_root}")" = "700"
+          test "$(stat --format '%a' "${evidence_root}")" = "700"
+
+      - name: Start network-isolated Home Assistant stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/advnfc-stage-root.txt")"
+          docker run --detach \
+            --name "${STAGE_CONTAINER}" \
+            --network none \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+            --tmpfs /run:rw,nosuid,size=64m \
+            --volume "${stage_root}/config:/config:rw" \
+            --volume "${stage_root}/evidence:/evidence:rw" \
+            --entrypoint python3 \
+            "${HA_IMAGE}" \
+            -m homeassistant --config /config
+
+          ready=false
+          for attempt in $(seq 1 120); do
+            if docker exec "${STAGE_CONTAINER}" python -c \
+              "import socket; c=socket.create_connection(('127.0.0.1', 8123), 2); c.close()" \
+              2>/dev/null; then
+              sleep 2
+              ready=true
+              break
+            fi
+            if ! docker inspect "${STAGE_CONTAINER}" --format '{{.State.Running}}' \
+              | grep -qx true; then
+              docker logs "${STAGE_CONTAINER}"
+              exit 1
+            fi
+            sleep 2
+          done
+          test "${ready}" = true
+
+          docker inspect "${STAGE_CONTAINER}" \
+            --format '{"id":"{{.Id}}","image":"{{.Image}}","network_mode":"{{.HostConfig.NetworkMode}}","published_ports":{{json .HostConfig.PortBindings}},"cap_drop":{{json .HostConfig.CapDrop}},"security_opt":{{json .HostConfig.SecurityOpt}}}' \
+            | sudo tee "${stage_root}/evidence/container-isolation.json" >/dev/null
+
+      - name: Verify synthetic baseline read-only
+        if: inputs.mode == 'baseline_read_only'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec "${STAGE_CONTAINER}" \
+            python /config/staging/verify_baseline.py
+
+      - name: Verify administration schemas without mutation
+        if: inputs.mode == 'schema_non_mutating'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec "${STAGE_CONTAINER}" \
+            python /config/staging/verify_admin_schemas.py
+
+      - name: Verify segregation and non-mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage_root="$(cat "${RUNNER_TEMP}/advnfc-stage-root.txt")"
+          sudo test ! -e "${stage_root}/config/AdvNFC-validation/gateway-spy.jsonl"
+          ! sudo grep -R -E -i \
+            '(ha-starburst|assistive/nfc|advnfc/[A-Za-z0-9_-]+/last_uid|mqtt:|api_key:)' \
+            "${stage_root}/config" \
+            --exclude=onboarding-password
+          before="$(sudo grep 'AdvNFC/advnfc_tag_mapping.yaml$' \
+            "${stage_root}/evidence/config-sha256.txt" | cut -d' ' -f1)"
+          after="$(sudo sha256sum \
+            "${stage_root}/config/AdvNFC/advnfc_tag_mapping.yaml" | cut -d' ' -f1)"
+          test "${before}" = "${after}"
+          sudo test ! -e "${stage_root}/config/staging/onboarding-password"
+
+      - name: Capture logs and dispose stage
+        if: always()
+        shell: bash
+        run: |
+          stage_root="$(cat "${RUNNER_TEMP}/advnfc-stage-root.txt" 2>/dev/null || true)"
+          if test -n "${stage_root}" && test -d "${stage_root}"; then
+            docker logs "${STAGE_CONTAINER}" 2>&1 \
+              | sudo tee "${stage_root}/evidence/home-assistant.log" >/dev/null || true
+          fi
+          docker rm --force "${STAGE_CONTAINER}" >/dev/null 2>&1 || true
+          if docker ps --all --format '{{.Names}}' | grep -qx "${STAGE_CONTAINER}"; then
+            echo "Disposable stage still exists after removal" >&2
+            exit 1
+          fi
+          if test -n "${stage_root}" && test -d "${stage_root}"; then
+            printf '%s\n' 'container_removed=true' \
+              | sudo tee "${stage_root}/evidence/disposal.txt" >/dev/null
+            sudo chown -R "$(id -u):$(id -g)" "${stage_root}/evidence"
+          fi
+
+      - name: Upload immutable validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: advnfc-disposable-validation-${{ inputs.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/advnfc-disposable-stage/evidence/
+          if-no-files-found: error
+          retention-days: 30

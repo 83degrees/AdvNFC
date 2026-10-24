@@ -1,4 +1,4 @@
-"""File-only, non-dispatching ASTV gateway spy for disposable staging."""
+"""File-only, non-dispatching ASTV gateway spy for AdvNFC validation."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ DOMAIN = "astv_staging_sink"
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register a sink that can only append to staging-local evidence."""
 
-    target = Path(hass.config.path("ASTV-357", "gateway-spy.jsonl"))
+    target = Path(hass.config.path("AdvNFC-validation", "gateway-spy.jsonl"))
 
     def append_record(record: dict[str, str]) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)

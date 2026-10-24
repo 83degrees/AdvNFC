@@ -1,4 +1,4 @@
-"""Read-only ASTV catalogue double for the ASTV-357 disposable stage."""
+"""Read-only ASTV catalogue double for disposable AdvNFC validation."""
 
 from __future__ import annotations
 
@@ -6,16 +6,24 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.helpers.typing import ConfigType
 
 DOMAIN = "astv_intent_catalogue"
-REVISION = "sha256:98790a0ecc161e218e845c57a673ff6a4d54e984076b7eddc0547cd164638e8e"
+REVISION = "synthetic-v1"
 RECORDS = [
-    {"intent_id": "bbc_radio_2", "record": {"intent": "media.play_source", "title": "Play BBC Radio 2", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "bbc_radio_2"}}},
-    {"intent_id": "classic_fm", "record": {"intent": "media.play_source", "title": "Play Classic FM", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "classic_fm"}}},
-    {"intent_id": "gold_radio", "record": {"intent": "media.play_source", "title": "Play Gold Radio", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "gold_radio"}}},
-    {"intent_id": "lbc_news", "record": {"intent": "media.play_source", "title": "Play LBC News", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "lbc_news"}}},
-    {"intent_id": "lbc_radio", "record": {"intent": "media.play_source", "title": "LBC", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "lbc_radio"}}},
-    {"intent_id": "morning_routine", "record": {"intent": "routine.run", "routine": "morning", "title": "Good Morning Routine", "params": {}}},
-    {"intent_id": "news_briefing", "record": {"intent": "media.play_source", "title": "News Briefing", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "news_briefing"}}},
-    {"intent_id": "smooth_radio", "record": {"intent": "media.play_source", "title": "Smooth Radio", "params": {"output": {"domain": "audio"}, "catalogue_id": "curated_media", "item_id": "smooth_radio"}}},
+    {
+        "intent_id": "validation_primary",
+        "record": {
+            "intent": "validation.noop",
+            "title": "Synthetic primary target",
+            "params": {},
+        },
+    },
+    {
+        "intent_id": "validation_secondary",
+        "record": {
+            "intent": "validation.noop",
+            "title": "Synthetic secondary target",
+            "params": {},
+        },
+    },
 ]
 
 
